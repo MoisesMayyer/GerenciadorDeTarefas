@@ -1,133 +1,85 @@
-import json
-import os
-
 from uteis import (
+    STATUS_NAO_REALIZADA,
+    Cores,
+    dados_status,
+    gerar_id,
     ler_arquivo,
-    apagar_arquivo,
-    alterar_status,
-    ARQUIVO
+    salvar_arquivo,
 )
 
 
 class Tarefas:
     def __init__(self):
-        self.id = None
-        self.descricao = None
-        self.status = None
+        self.tarefas = ler_arquivo()
 
-    def criar_tarefa(self, identificacao=0, descricao=""):
-        self.id = identificacao
-        self.descricao = descricao
-        self.status = "não realizada"
+    def recarregar(self):
+        self.tarefas = ler_arquivo()
 
-        lista_de_tarefas = []
+    def salvar(self):
+        salvar_arquivo(self.tarefas)
 
-        dados_tarefas = {
-            "id": int(self.id),
-            "tarefa": self.descricao,
-            "status": self.status
+    def buscar_por_id(self, identificacao):
+        for tarefa in self.tarefas:
+            if int(tarefa["id"]) == identificacao:
+                return tarefa
+
+        return None
+
+    def criar_tarefa(self, descricao):
+        nova_tarefa = {
+            "id": gerar_id(self.tarefas),
+            "tarefa": descricao,
+            "status": STATUS_NAO_REALIZADA,
         }
 
-        if os.path.exists(ARQUIVO):
+        self.tarefas.append(nova_tarefa)
+        self.salvar()
+        return nova_tarefa
 
-            with open(ARQUIVO, "r") as file:
-                lista_de_tarefas = json.load(file)
+    def atualizar_tarefa(self, identificacao, nova_descricao=None, novo_status=None):
+        tarefa = self.buscar_por_id(identificacao)
 
-        lista_de_tarefas.append(dados_tarefas)
+        if tarefa is None:
+            return None
 
-        with open(ARQUIVO, "w") as file:
-            json.dump(lista_de_tarefas, file, indent=3)
+        if nova_descricao:
+            tarefa["tarefa"] = nova_descricao
 
-    @staticmethod
-    def atualizar_tarefa():
-        lista = ler_arquivo()
+        if novo_status:
+            tarefa["status"] = novo_status
 
-        while True:
-            try:
-                opc_editar = int(
-                    input("Digite o ID que deseja alterar (999 para sair): ")
-                )
+        self.salvar()
+        return tarefa
 
-                if opc_editar == 999:
-                    break
+    def deletar_tarefa(self, identificacao):
+        tarefa = self.buscar_por_id(identificacao)
 
-                encontrou = False
+        if tarefa is None:
+            return False
 
-                for tarefa in lista:
+        self.tarefas.remove(tarefa)
+        self.salvar()
+        return True
 
-                    if int(tarefa["id"]) == opc_editar:
-                        encontrou = True
+    def listar_tarefas(self):
+        return self.tarefas
 
-                        print(
-                            f"ID: {tarefa['id']} ; {tarefa['tarefa']}"
-                        )
+    def exibir_tarefas(self):
+        if not self.tarefas:
+            print("Nenhuma tarefa cadastrada.")
+            return
 
-                        opc_verificar = input(
-                            "Deseja alterar esse? [S/N]: "
-                        ).lower().strip()
+        print("+------+------------------------------+----------------------+")
+        print("| ID   | Tarefa                       | Status               |")
+        print("+------+------------------------------+----------------------+")
 
-                        if opc_verificar == "s":
+        for tarefa in self.tarefas:
+            descricao = tarefa["tarefa"][:28]
+            cor_status, status_texto = dados_status(tarefa["status"])
+            complemento = " " * max(0, 20 - len(status_texto))
+            print(
+                f"| {tarefa['id']:<4} | {descricao:<28} | "
+                f"{cor_status}{status_texto}{Cores.RESET}{complemento} |"
+            )
 
-                            tarefa["tarefa"] = input(
-                                "Nova tarefa: "
-                            )
-
-                            status = input(
-                                "Deseja alterar o status dela [S/N]: "
-                            ).strip().lower()
-
-                            if status == "s":
-
-                                opc_status = input(
-                                    "Pressione [1] para concluída\n"
-                                    "Pressione [2] para não realizada\n"
-                                    "Pressione [3] para em andamento\n"
-                                )
-
-                                alterar_status(
-                                    opc_status,
-                                    tarefa
-                                )
-
-                            with open(ARQUIVO, "w") as file:
-                                json.dump(
-                                    lista,
-                                    file,
-                                    indent=3
-                                )
-
-                            print(
-                                "Tarefa atualizada com sucesso!"
-                            )
-
-                if not encontrou:
-                    print("ID não encontrado!")
-
-            except ValueError:
-                print("Digite apenas números!")
-
-    @staticmethod
-    def deletar_tarefa():
-        lista = ler_arquivo()
-
-        apagar_arquivo(lista)
-
-    @staticmethod
-    def listar_tarefas():
-
-        if os.path.exists(ARQUIVO):
-
-            lista = ler_arquivo()
-
-            for tarefa in lista:
-                print(
-                    f"ID:({tarefa['id']}) "
-                    f"{tarefa['tarefa']} "
-                    f"[{tarefa['status']}]"
-                )
-
-        else:
-            print("-" * 30)
-            print("Ainda não possui tarefas")
-
-        print()
+        print("+------+------------------------------+----------------------+")
