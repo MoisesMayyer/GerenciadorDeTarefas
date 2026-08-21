@@ -20,7 +20,7 @@ class Cores:
 
 
 def limpar_tela():
-    os.system("cls" if os.name == "nt" else "clear")
+    print("\033[H\033[J", end="")
 
 
 def pausar():
@@ -84,18 +84,22 @@ def normalizar_status(status):
 
 def normalizar_tarefas(tarefas):
     for tarefa in tarefas:
-        tarefa["status"] = normalizar_status(tarefa.get("status", ""))
+        tarefa["status"] = normalizar_status(
+            tarefa.get("status", "")
+        )
 
     return tarefas
 
 
 def dados_status(status):
     status = normalizar_status(status)
+
     cores_por_status = {
         STATUS_CONCLUIDA: Cores.VERDE,
         STATUS_NAO_REALIZADA: Cores.VERMELHO,
         STATUS_EM_ANDAMENTO: Cores.AMARELO,
     }
+
     simbolos_por_status = {
         STATUS_CONCLUIDA: "[x]",
         STATUS_NAO_REALIZADA: "[ ]",
@@ -104,6 +108,7 @@ def dados_status(status):
 
     cor = cores_por_status.get(status, Cores.CINZA)
     simbolo = simbolos_por_status.get(status, "[?]")
+
     return cor, f"{simbolo} {status}"
 
 

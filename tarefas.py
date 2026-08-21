@@ -1,7 +1,5 @@
 from uteis import (
     STATUS_NAO_REALIZADA,
-    Cores,
-    dados_status,
     gerar_id,
     ler_arquivo,
     salvar_arquivo,
@@ -34,21 +32,23 @@ class Tarefas:
 
         self.tarefas.append(nova_tarefa)
         self.salvar()
+
         return nova_tarefa
 
-    def atualizar_tarefa(self, identificacao, nova_descricao=None, novo_status=None):
+    def atualizar_tarefa(self, identificacao, nova_descricao=None, novo_status=None,):
         tarefa = self.buscar_por_id(identificacao)
 
         if tarefa is None:
             return None
 
-        if nova_descricao:
+        if nova_descricao is not None:
             tarefa["tarefa"] = nova_descricao
 
-        if novo_status:
+        if novo_status is not None:
             tarefa["status"] = novo_status
 
         self.salvar()
+
         return tarefa
 
     def deletar_tarefa(self, identificacao):
@@ -59,27 +59,8 @@ class Tarefas:
 
         self.tarefas.remove(tarefa)
         self.salvar()
+
         return True
 
     def listar_tarefas(self):
         return self.tarefas
-
-    def exibir_tarefas(self):
-        if not self.tarefas:
-            print("Nenhuma tarefa cadastrada.")
-            return
-
-        print("+------+------------------------------+----------------------+")
-        print("| ID   | Tarefa                       | Status               |")
-        print("+------+------------------------------+----------------------+")
-
-        for tarefa in self.tarefas:
-            descricao = tarefa["tarefa"][:28]
-            cor_status, status_texto = dados_status(tarefa["status"])
-            complemento = " " * max(0, 20 - len(status_texto))
-            print(
-                f"| {tarefa['id']:<4} | {descricao:<28} | "
-                f"{cor_status}{status_texto}{Cores.RESET}{complemento} |"
-            )
-
-        print("+------+------------------------------+----------------------+")

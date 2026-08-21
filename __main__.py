@@ -1,4 +1,5 @@
 from tarefas import Tarefas
+
 from uteis import (
     Cores,
     cabecalho,
@@ -8,16 +9,19 @@ from uteis import (
     mensagem_erro,
     mensagem_sucesso,
     pausar,
+    dados_status,
 )
 
 
 def mostrar_menu():
     cabecalho("GERENCIADOR DE TAREFAS")
+
     print(f"{Cores.AZUL}1{Cores.RESET} - Criar tarefa")
     print(f"{Cores.AZUL}2{Cores.RESET} - Editar tarefa")
     print(f"{Cores.AZUL}3{Cores.RESET} - Apagar tarefa")
     print(f"{Cores.AZUL}4{Cores.RESET} - Ver tarefas")
     print(f"{Cores.AZUL}0{Cores.RESET} - Sair")
+
     print(f"{Cores.CIANO}{'-' * 54}{Cores.RESET}")
 
 
@@ -29,8 +33,37 @@ def ler_id(mensagem):
         return None
 
 
+def exibir_tarefas(gerenciador):
+    tarefas = gerenciador.listar_tarefas()
+
+    if not tarefas:
+        print("Nenhuma tarefa cadastrada.")
+        return
+
+    print("+------+------------------------------+----------------------+")
+    print("| ID   | Tarefa                       | Status               |")
+    print("+------+------------------------------+----------------------+")
+
+    for tarefa in tarefas:
+        descricao = tarefa["tarefa"][:28]
+
+        cor_status, status_texto = dados_status(tarefa["status"])
+
+        complemento = " " * max(0, 20 - len(status_texto))
+
+        print(
+            f"| {tarefa['id']:<4} | "
+            f"{descricao:<28} | "
+            f"{cor_status}{status_texto}"
+            f"{Cores.RESET}{complemento} |"
+        )
+
+    print("+------+------------------------------+----------------------+")
+
+
 def criar_tarefa(gerenciador):
     cabecalho("CRIAR TAREFA")
+
     descricao = input("Descrição: ").strip()
 
     if not descricao:
@@ -38,17 +71,23 @@ def criar_tarefa(gerenciador):
         return
 
     tarefa = gerenciador.criar_tarefa(descricao)
-    mensagem_sucesso(f"Tarefa #{tarefa['id']} adicionada com sucesso.")
+
+    mensagem_sucesso(
+        f"Tarefa #{tarefa['id']} adicionada com sucesso."
+    )
 
 
 def editar_tarefa(gerenciador):
     cabecalho("EDITAR TAREFA")
-    gerenciador.exibir_tarefas()
+
+    exibir_tarefas(gerenciador)
 
     if not gerenciador.listar_tarefas():
         return
 
-    identificacao = ler_id("\nID da tarefa que deseja editar: ")
+    identificacao = ler_id(
+        "\nID da tarefa que deseja editar: "
+    )
 
     if identificacao is None:
         return
@@ -59,35 +98,57 @@ def editar_tarefa(gerenciador):
         mensagem_erro("ID não encontrado.")
         return
 
-    print(f"\nSelecionada: {Cores.NEGRITO}{tarefa['tarefa']}{Cores.RESET}")
-    nova_descricao = input("Nova descrição (Enter para manter): ").strip()
+    print(
+        f"\nSelecionada: "
+        f"{Cores.NEGRITO}{tarefa['tarefa']}{Cores.RESET}"
+    )
 
-    alterar_status = input("Deseja alterar o status? [S/N]: ").strip().lower()
+    nova_descricao = input(
+        "Nova descrição (Enter para manter): "
+    ).strip()
+
+    alterar_status = input(
+        "Deseja alterar o status? [S/N]: "
+    ).strip().lower()
+
     novo_status = None
 
     if alterar_status == "s":
         novo_status = escolher_status()
 
         if novo_status is None:
-            mensagem_erro("Status inválido. A tarefa não foi alterada.")
+            mensagem_erro(
+                "Status inválido. A tarefa não foi alterada."
+            )
             return
 
     if not nova_descricao and novo_status is None:
         mensagem_aviso("Nenhuma alteração foi feita.")
         return
 
-    gerenciador.atualizar_tarefa(identificacao, nova_descricao, novo_status)
+    if not nova_descricao:
+        nova_descricao = None
+
+    gerenciador.atualizar_tarefa(
+        identificacao,
+        nova_descricao,
+        novo_status,
+    )
+
     mensagem_sucesso("Tarefa atualizada com sucesso.")
 
 
 def apagar_tarefa(gerenciador):
     cabecalho("APAGAR TAREFA")
-    gerenciador.exibir_tarefas()
+
+    exibir_tarefas(gerenciador)
 
     if not gerenciador.listar_tarefas():
         return
 
-    identificacao = ler_id("\nID da tarefa que deseja apagar: ")
+    identificacao = ler_id(
+        "\nID da tarefa que deseja apagar: "
+    )
 
     if identificacao is None:
         return
@@ -107,12 +168,13 @@ def apagar_tarefa(gerenciador):
         return
 
     gerenciador.deletar_tarefa(identificacao)
+
     mensagem_sucesso("Tarefa removida com sucesso.")
 
 
 def listar_tarefas(gerenciador):
     cabecalho("LISTA DE TAREFAS")
-    gerenciador.exibir_tarefas()
+    exibir_tarefas(gerenciador)
 
 
 def main():
@@ -121,24 +183,31 @@ def main():
     while True:
         limpar_tela()
         mostrar_menu()
+
         opcao = input("Digite sua opção: ").strip()
+
         limpar_tela()
 
         if opcao == "1":
             criar_tarefa(gerenciador)
             pausar()
+
         elif opcao == "2":
             editar_tarefa(gerenciador)
             pausar()
+
         elif opcao == "3":
             apagar_tarefa(gerenciador)
             pausar()
+
         elif opcao == "4":
             listar_tarefas(gerenciador)
             pausar()
+
         elif opcao == "0":
             mensagem_sucesso("Até logo!")
             break
+
         else:
             mensagem_erro("Opção inválida.")
             pausar()
