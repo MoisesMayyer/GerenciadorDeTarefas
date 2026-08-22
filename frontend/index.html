@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciador de Tarefas</title>
+
+  <!-- Fontes: Fraunces (títulos), Inter (texto), JetBrains Mono (IDs/labels) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app">
+
+    <!-- ===================== DASHBOARD ===================== -->
+    <header class="dashboard">
+      <div class="dashboard__title">
+        <p class="dashboard__eyebrow">painel de controle</p>
+        <h1>Gerenciador de <em>Tarefas</em></h1>
+      </div>
+
+      <div class="dashboard__stats">
+        <div class="stat-card">
+          <span class="stat-card__value" id="total-count">0</span>
+          <span class="stat-card__label">no total</span>
+        </div>
+        <div class="stat-card stat-card--done">
+          <span class="stat-card__value" id="done-count">0</span>
+          <span class="stat-card__label">concluídas</span>
+        </div>
+        <div class="stat-card stat-card--pending">
+          <span class="stat-card__value" id="pending-count">0</span>
+          <span class="stat-card__label">pendentes</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===================== FORM DE NOVA TAREFA ===================== -->
+    <section class="toolbar">
+      <form id="form-nova-tarefa" class="toolbar__form">
+        <input
+          type="text"
+          id="input-descricao"
+          placeholder="Descreva uma nova tarefa…"
+          maxlength="120"
+          autocomplete="off"
+          required
+        >
+        <button type="submit" class="btn btn--primary">
+          <span class="btn__icon" aria-hidden="true">+</span>
+          Adicionar tarefa
+        </button>
+      </form>
+    </section>
+
+    <!-- Mensagens de sucesso / erro -->
+    <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+
+    <!-- ===================== LISTA DE TAREFAS ===================== -->
+    <main class="task-list-wrapper">
+
+      <div id="loading" class="loading" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <p>Carregando tarefas…</p>
+      </div>
+
+      <div id="empty-state" class="empty-state" hidden>
+        <p class="empty-state__title">Nenhuma tarefa por aqui</p>
+        <p class="empty-state__subtitle">Adicione a primeira tarefa no campo acima.</p>
+      </div>
+
+      <ul id="task-list" class="task-list"></ul>
+    </main>
+  </div>
+
+  <!-- ===================== MODAL DE EDIÇÃO ===================== -->
+  <div id="modal-overlay" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <p class="modal__eyebrow">editando tarefa <span id="modal-task-id"></span></p>
+      <h2 id="modal-title">Alterar tarefa</h2>
+
+      <form id="form-editar-tarefa">
+        <input type="hidden" id="edit-id">
+
+        <label for="edit-descricao">Descrição</label>
+        <textarea id="edit-descricao" rows="3" maxlength="120" required></textarea>
+
+        <label for="edit-status">Status</label>
+        <select id="edit-status">
+          <option value="não realizada">Não realizada</option>
+          <option value="em andamento">Em andamento</option>
+          <option value="concluída">Concluída</option>
+        </select>
+
+        <div class="modal__actions">
+          <button type="button" id="btn-cancelar-edicao" class="btn btn--ghost">Cancelar</button>
+          <button type="submit" class="btn btn--primary">Salvar alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

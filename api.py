@@ -1,9 +1,19 @@
 from fastapi import FastAPI
-
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from tarefas import Tarefas
+
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5500"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class Tarefa(BaseModel):
@@ -38,6 +48,13 @@ def pegar_tarefa_id(identificacao: int):
     tarefas = Tarefas()
 
     return tarefas.buscar_por_id(identificacao)
+
+
+@app.post("/adicionar_tarefa")
+def adicionar_tarefa(tarefa: CriarTarefa):
+    tarefas = Tarefas()
+
+    return tarefas.criar_tarefa(tarefa.descricao)
 
 
 @app.put("/atualizar_tarefa/{identificacao}")
