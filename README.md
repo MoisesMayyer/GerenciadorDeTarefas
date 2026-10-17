@@ -1,263 +1,195 @@
 # Gerenciador de Tarefas
- 
-Aplicação de gerenciamento de tarefas desenvolvida em Python, com uma API REST utilizando FastAPI e uma interface web desenvolvida em HTML, CSS e JavaScript.
- 
-O projeto começou como uma aplicação de linha de comando (CLI) e posteriormente evoluiu para uma arquitetura com backend e frontend separados.
- 
+
+Aplicação de gerenciamento de tarefas com **API REST em FastAPI** e
+**front-end em HTML, CSS e JavaScript puro**, servido como site estático.
+
+O projeto começou como uma aplicação de linha de comando (CLI) e evoluiu para
+uma arquitetura com backend e frontend separados.
+
 ## Funcionalidades
- 
+
 ### Backend
- 
 - Criar tarefas
 - Listar todas as tarefas
 - Buscar tarefa por ID
-- Editar tarefas
+- Editar tarefas (atualização parcial)
+- Cancelar tarefas
 - Excluir tarefas
-- Alterar status das tarefas
-- Persistência dos dados em JSON
+- Persistência em banco SQLite
 - API REST com operações CRUD
-- Validação de dados utilizando Pydantic
-- CORS configurado para comunicação com o frontend
+- Validação de dados com Pydantic
+- CORS liberado para o frontend
+
 ### Frontend
- 
-- Dashboard com contadores de tarefas
-- Criação de tarefas
-- Edição de tarefas
-- Exclusão de tarefas
-- Alteração de status
-- Feedback visual para operações
-- Modal para edição
-- Indicador de carregamento
-- Estado vazio quando não existem tarefas
-- Layout responsivo para dispositivos móveis
-- Interface publicada utilizando GitHub Pages
-## Tecnologias utilizadas
- 
-### Backend
- 
-- Python 3
-- FastAPI
-- Pydantic
-- Uvicorn
-- JSON
-- Programação Orientada a Objetos (POO)
-### Frontend
- 
-- HTML5
-- CSS3
-- JavaScript
-- Fetch API
-- GitHub Pages
+- Interface moderna com tema escuro e destaque roxo (HTML5, CSS3 e JS puro)
+- Duas áreas separadas: **criar** (formulário expansível) e **gerenciar** (lista)
+- Listar tarefas com estados de carregamento, lista vazia e mensagens de erro
+- Criar, editar, concluir/reabrir e excluir tarefas
+- Controles próprios: botão roxo de criação, checkbox personalizado, botão de
+  edição com ícone e botão de exclusão em vermelho com confirmação
+- Filtro por status (todas / pendentes / concluídas / canceladas) com contadores
+- Indicador de conexão com a API e mensagens de sucesso/erro
+- Layout responsivo (duas colunas no desktop, empilhado no celular)
+- Animações discretas que respeitam `prefers-reduced-motion`
+
+> Detalhes do frontend (módulos, comunicação com a API e configuração da URL)
+> estão em [`docs/README.md`](docs/README.md).
+
+## Tecnologias
+
+| Backend | Frontend |
+|---|---|
+| Python 3 | HTML5 |
+| FastAPI | CSS3 |
+| SQLAlchemy | JavaScript (módulos ES) |
+| Pydantic | Fetch API |
+| SQLite | |
+| Uvicorn | |
+
 ## Arquitetura
- 
-O projeto utiliza uma arquitetura simples de frontend e backend separados:
- 
+
 ```
-Frontend
-HTML + CSS + JavaScript
-        |
-        | HTTP / Fetch
-        v
-FastAPI
-        |
-        v
-Classe Tarefas
-        |
-        v
-task.json
+Frontend (docs/)
+HTML + CSS + JavaScript  ──fetch──►  API FastAPI (backend/)
+                                          │
+                                          ▼
+                                     SQLAlchemy
+                                          │
+                                          ▼
+                                    SQLite (backend/database.db)
 ```
- 
-O frontend é responsável pela interface e pelas requisições HTTP.
- 
-O backend é responsável pelas regras de negócio e pela persistência das tarefas.
- 
-## API
- 
-A API possui os seguintes endpoints:
- 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/` | Página inicial da API |
-| GET | `/tarefas` | Lista todas as tarefas |
-| GET | `/tarefas/{id}` | Busca uma tarefa por ID |
-| POST | `/adicionar_tarefa` | Cria uma nova tarefa |
-| PUT | `/atualizar_tarefa/{id}` | Atualiza uma tarefa |
-| DELETE | `/deletar_tarefa/{id}` | Exclui uma tarefa |
- 
-A documentação interativa da API é disponibilizada automaticamente pelo FastAPI em:
- 
-```
-http://127.0.0.1:8000/docs
-```
- 
-## Testes
- 
-Durante o desenvolvimento, a API foi testada utilizando a documentação interativa do FastAPI e o frontend foi utilizado para validar a comunicação entre cliente e servidor.
- 
-Os endpoints CRUD foram testados individualmente:
- 
-- GET para listagem e consulta por ID
-- POST para criação
-- PUT para atualização
-- DELETE para remoção
-O projeto também foi utilizado para praticar conceitos de requisições HTTP, códigos de resposta, JSON e integração entre frontend e backend.
- 
-## Frontend desenvolvido com auxílio de IA
- 
-A primeira versão do frontend foi desenvolvida com auxílio de Inteligência Artificial.
- 
-A IA foi utilizada principalmente para:
- 
-- Estrutura inicial do HTML
-- Estilização com CSS
-- Criação da interface visual
-- Implementação inicial do JavaScript
-- Integração do frontend com a API através de fetch
-- Criação de componentes de interface como modal, feedbacks e estados de carregamento
-O frontend não representa a parte principal do estudo deste projeto. O objetivo foi utilizar uma interface funcional para testar e consumir a API desenvolvida em Python.
- 
-A integração, configuração da API, endpoints, modelos Pydantic, CORS e lógica do backend foram implementados e ajustados durante o desenvolvimento do projeto.
- 
-## Objetivo
- 
-O projeto foi desenvolvido como parte dos estudos de desenvolvimento backend com Python.
- 
-Os principais conceitos praticados foram:
- 
-- CRUD
-- Programação Orientada a Objetos
-- Modularização
-- Persistência de dados
-- Manipulação de arquivos JSON
-- Tratamento de exceções
-- APIs REST
-- FastAPI
-- Pydantic
-- Uvicorn
-- HTTP
-- Métodos GET, POST, PUT e DELETE
-- CORS
-- Requisições com JavaScript fetch
-- Integração entre frontend e backend
-- Git e GitHub
-- Publicação de frontend com GitHub Pages
+
+O frontend cuida da interface e das requisições HTTP; o backend cuida das
+regras de negócio e da persistência.
+
 ## Estrutura do projeto
- 
+
 ```
 GerenciadorDeTarefas/
-│
-├── docs/
+├── backend/
+│   ├── app/
+│   │   ├── database/
+│   │   │   ├── database.py      # engine e sessão do SQLAlchemy
+│   │   │   └── models.py        # modelo Tarefa + enum StatusTarefa
+│   │   ├── routers/
+│   │   │   └── tarefas.py       # rotas REST das tarefas
+│   │   ├── schemas/
+│   │   │   └── tarefas.py       # schemas Pydantic
+│   │   ├── depends.py           # dependência de sessão do banco
+│   │   └── main.py              # aplicação FastAPI + CORS
+│   └── database.db              # banco SQLite (gerado)
+├── docs/                        # frontend publicado no GitHub Pages
 │   ├── index.html
-│   ├── style.css
-│   └── script.js
-│
-├── api.py
-├── tarefas.py
-├── uteis.py
-├── task.json
-├── __main__.py
+│   ├── css/style.css
+│   ├── js/
+│   │   ├── api.js               # comunicação HTTP
+│   │   ├── tasks.js             # estado e operações
+│   │   ├── ui.js                # renderização e eventos
+│   │   └── main.js              # inicialização
+│   └── README.md
 ├── README.md
 └── .gitignore
 ```
- 
+
+## API
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/` | Verificação simples da API |
+| GET | `/tarefas/` | Lista todas as tarefas |
+| GET | `/tarefas/tarefa/{id}` | Busca uma tarefa por ID |
+| POST | `/tarefas/nova_tarefa` | Cria uma nova tarefa |
+| PUT | `/tarefas/atualizar_tarefa/{id}` | Atualiza uma tarefa (parcial) |
+| PATCH | `/tarefas/cancelar_tarefa/{id}` | Marca a tarefa como cancelada |
+| DELETE | `/tarefas/deletar_tarefa/{id}` | Exclui uma tarefa |
+
+Formato de uma tarefa:
+
+```json
+{
+  "id": 1,
+  "nome": "Estudar FastAPI",
+  "descricao": "rotas, schemas e dependências",
+  "status": "pendente"
+}
+```
+
+`status` pode ser `"pendente"`, `"concluido"` ou `"cancelado"`.
+
+A documentação interativa é gerada automaticamente em
+`http://127.0.0.1:8000/docs`.
+
 ## Como executar localmente
- 
+
 ### 1. Clonar o projeto
- 
+
 ```bash
 git clone https://github.com/MoisesMayyer/GerenciadorDeTarefas.git
 cd GerenciadorDeTarefas
 ```
- 
+
 ### 2. Criar e ativar o ambiente virtual
- 
-**Linux/macOS:**
- 
+
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate        # Linux/macOS
+# .venv\Scripts\activate         # Windows
 ```
- 
-**Windows:**
- 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-```
- 
+
 ### 3. Instalar as dependências
- 
+
 ```bash
-pip install fastapi uvicorn pydantic
+pip install fastapi uvicorn sqlalchemy
 ```
- 
+
 ### 4. Iniciar a API
- 
+
+A partir da pasta `backend/`:
+
 ```bash
-uvicorn api:app --reload
+cd backend
+uvicorn app.main:app --reload --port 8000
 ```
- 
-A API estará disponível em:
- 
+
+- API: `http://127.0.0.1:8000`
+- Documentação: `http://127.0.0.1:8000/docs`
+
+O banco SQLite (`backend/database.db`) é criado automaticamente na primeira
+execução.
+
+### 5. Servir o frontend
+
+Em outro terminal, a partir da pasta `docs/`:
+
+```bash
+cd docs
+python -m http.server 5500
 ```
-http://127.0.0.1:8000
-```
- 
-A documentação interativa estará disponível em:
- 
-```
-http://127.0.0.1:8000/docs
-```
- 
-### 5. Executar o frontend
- 
-O frontend pode ser aberto utilizando um servidor HTTP local, como o Live Server.
- 
-Por exemplo:
- 
-```
-http://127.0.0.1:5500
-```
- 
-Com a API e o frontend executando simultaneamente:
- 
-```
-Frontend
-127.0.0.1:5500
-        |
-        v
-FastAPI
-127.0.0.1:8000
-        |
-        v
-task.json
-```
- 
+
+Depois abra `http://127.0.0.1:5500`. Também funciona a extensão **Live Server**
+do VS Code.
+
+> O frontend usa módulos ES, então precisa ser servido por HTTP — abrir o
+> `index.html` direto pelo sistema de arquivos (`file://`) não funciona.
+
 ## Publicação
- 
-O frontend possui uma versão publicada através do GitHub Pages:
- 
+
+O frontend tem uma versão publicada via GitHub Pages:
+
 https://moisesmayyer.github.io/GerenciadorDeTarefas/
- 
-A versão publicada atualmente funciona como demonstração da interface.
- 
-A API permanece executando localmente durante o desenvolvimento, portanto as operações de CRUD não ficam disponíveis publicamente através do GitHub Pages.
- 
+
+Como a API roda apenas localmente, a versão publicada serve como demonstração
+da interface; as operações de CRUD dependem da API no ar.
+
 ## Próximos passos
- 
-Algumas melhorias planejadas para versões futuras:
- 
-- Migrar a persistência de JSON para um banco de dados
+
 - Adicionar testes automatizados com Pytest
-- Melhorar a validação dos dados
-- Implementar autenticação
-- Melhorar a arquitetura do backend
-- Criar uma versão completa do frontend sem depender de código gerado por IA
 - Hospedar a API
-- Adicionar documentação mais detalhada da API
-- Criar deploy completo de frontend e backend
+- Implementar autenticação
+- Criar `requirements.txt`
+- Melhorar a documentação da API
+
 ## Status do projeto
- 
-Em desenvolvimento.
- 
-O projeto atualmente possui um CRUD funcional, API REST com FastAPI e frontend integrado para consumo da API.
+
+Em desenvolvimento. O CRUD está funcional: API REST em FastAPI com SQLite e
+frontend integrado consumindo a API.
