@@ -227,15 +227,10 @@ GerenciadorDeTarefas/
 │   │   ├── api.js               # comunicação HTTP
 │   │   ├── tasks.js             # estado e operações
 │   │   ├── ui.js                # renderização e eventos
-│   │   └── main.js              # inicialização
-│   └── README.md
+│   │   └── main.js              # inicialização 
 ├── README.md
 └── .gitignore
 ```
-
-A API cuida das regras de negócio e da persistência. Detalhes do frontend
-(módulos, comunicação com a API e configuração da URL) estão em
-[`docs/README.md`](docs/README.md).
 
 ## Frontend
 
