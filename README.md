@@ -41,7 +41,7 @@ A API é servida com documentação interativa automática em `/docs` (Swagger U
 
 ## Funcionalidades
 
-- Cadastro, login e consulta do próprio perfil (`/usuarios`, `/auth`)
+- Cadastro, login e gerenciamento da própria conta (`/usuarios`, `/auth`)
 - Senhas armazenadas com **Argon2** e autenticação via **JWT** (OAuth2 Password Flow)
 - CRUD de **tarefas** com status `pendente`, `concluido` e `cancelado`
 - Isolamento por usuário em todas as rotas de tarefas
@@ -199,11 +199,11 @@ Em outro terminal, a partir da raiz do projeto:
 python -m http.server 5500 --directory docs
 ```
 
-Depois abra **http://localhost:5500** e entre com o e-mail e a senha cadastrados.
+Depois abra **http://localhost:5500**, clique em **Criar conta** e informe nome, e-mail e senha. Ao concluir, a conta já entra direto no sistema; nas próximas visitas, use o e-mail e a senha cadastrados.
 
 ## Endpoints
 
-Todas as rotas de tarefas exigem `Authorization: Bearer <token>`. "Dono" significa que o registro precisa pertencer ao usuário autenticado; caso contrário, a API responde **404**.
+As rotas de tarefas e as rotas autenticadas de usuário exigem `Authorization: Bearer <token>`. "Dono" significa que o registro precisa pertencer ao usuário autenticado; caso contrário, a API responde **404**.
 
 ### Autenticação
 
@@ -216,9 +216,14 @@ Todas as rotas de tarefas exigem `Authorization: Bearer <token>`. "Dono" signifi
 
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
+| GET | `/usuarios/` | autenticado | Lista o próprio usuário |
+| GET | `/usuarios/{id}` | dono | Busca o próprio usuário |
 | POST | `/usuarios/` | público | Cria uma conta (`201`) |
+| PUT | `/usuarios/{id}` | dono | Edita nome, e-mail e/ou senha |
+| PATCH | `/usuarios/{id}/cancelar` | dono | Desativa a conta (`ativo = false`) |
+| DELETE | `/usuarios/{id}` | dono | Remove a conta e suas tarefas (`204`) |
 
-> Ainda não existem rotas para editar, desativar ou excluir usuários. O campo `ativo` já é verificado no login e na validação do token.
+> As rotas autenticadas de usuário só operam sobre a própria conta; um `id` de outra conta responde **404**. Contas desativadas não fazem login e têm o token recusado. A exclusão remove as tarefas em cascata pelo ORM.
 
 ### Tarefas
 
@@ -244,6 +249,8 @@ Todas as rotas de tarefas exigem `Authorization: Bearer <token>`. "Dono" signifi
 | Usuário | Nome entre 1 e 50 caracteres; e-mail válido e único; senha entre 6 e 128 caracteres |
 | Usuário | A senha não pode conter apenas espaços; o e-mail é salvo e comparado em minúsculas |
 | Usuário | Contas inativas não conseguem autenticar nem usar o token |
+| Usuário | Cada conta só lê, edita, desativa ou exclui a si mesma; outro `id` responde `404` |
+| Usuário | A exclusão da conta remove todas as tarefas do usuário em cascata |
 | Tarefa | `nome` e `descricao` são obrigatórios na criação; a descrição pode ser uma string vazia |
 | Tarefa | `status` aceita apenas `pendente`, `concluido` ou `cancelado`; o padrão é `pendente` |
 | Tarefa | O `usuario_id` vem sempre do token, nunca do corpo da requisição |
@@ -258,11 +265,11 @@ Todas as rotas de tarefas exigem `Authorization: Bearer <token>`. "Dono" signifi
 
 | Código | Quando acontece |
 |---|---|
-| `200` | Leitura, atualização ou cancelamento de tarefa |
+| `200` | Leitura, atualização, cancelamento ou desativação de usuário; operações em tarefas |
 | `201` | Criação de usuário ou tarefa |
-| `204` | Exclusão de tarefa (sem corpo) |
+| `204` | Exclusão de usuário ou tarefa (sem corpo) |
 | `401` | Sem token, token inválido/expirado, usuário inativo ou credenciais incorretas |
-| `404` | Tarefa inexistente ou pertencente a outro usuário |
+| `404` | Usuário ou tarefa inexistente, ou pertencente a outra conta |
 | `409` | E-mail já cadastrado |
 | `422` | Corpo da requisição inválido (validação do Pydantic) |
 
@@ -281,7 +288,7 @@ usuarios (1) ──< tarefas
 - `tarefas.status` usa um `CHECK` com os três valores permitidos (`native_enum=False`).
 - `usuario_id` é uma chave estrangeira para `usuarios.id`. No schema atual a coluna é anulável e não indexada; as rotas sempre a preenchem, mas esse é um ponto a endurecer (ver [O que falta](#o-que-falta)).
 - Não há tabela de associação nem compartilhamento de tarefas entre contas.
-- Não há exclusão de usuário pela API, então não existe rotina de cascade configurada no banco.
+- A exclusão de usuário é feita pela API e remove as tarefas em cascata pelo ORM (`cascade="all, delete-orphan"`).
 
 ## Estrutura do projeto
 
@@ -393,13 +400,12 @@ Itens conhecidos, em ordem de prioridade:
 **Essencial**
 
 - [ ] Suíte de testes com `pytest` + `TestClient` (autenticação, isolamento entre usuários, CRUD e validação)
-- [ ] Tela de cadastro de usuário no frontend
 - [ ] Deploy da API para o frontend publicado funcionar por completo
 - [ ] `usuario_id` `NOT NULL`, indexado e com política de cascade ou soft delete
 
 **Qualidade**
 
-- [ ] CRUD de usuário (editar, desativar e excluir) e rota `/usuarios/me`
+- [ ] Tela de perfil no frontend (editar, desativar e excluir a conta)
 - [ ] Migrations com Alembic
 - [ ] `.env.example` para facilitar o setup de quem clona o projeto
 - [ ] Suíte de testes de frontend versionada

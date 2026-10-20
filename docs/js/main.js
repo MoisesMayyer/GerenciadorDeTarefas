@@ -1,8 +1,9 @@
-/* main.js — ponto de entrada: tema, sessão, interface e carga inicial. */
+/* main.js — ponto de entrada: tema, sessão, cadastro, interface e carga inicial. */
 
 import { criarGerenciadorTarefas } from "./tasks.js";
 import { criarInterface } from "./ui.js";
 import {
+  criarTelaCadastro,
   criarTelaLogin,
   encerrarSessao,
   temSessao,
@@ -20,20 +21,25 @@ const dom = {
   saudacao: document.querySelector("#saudacao"),
   usuarioNome: document.querySelector("#usuario-nome"),
   logout: document.querySelector("#logout"),
+  linkCriarConta: document.querySelector("#login-criar-conta"),
+  voltarLogin: document.querySelector("#cadastro-voltar"),
 };
 
-const login = criarTelaLogin({
-  aoEntrar: async (usuario) => {
-    exibirApp(usuario);
-    await gerenciador.carregar();
-  },
-});
+async function entrarNoApp(usuario) {
+  exibirApp(usuario);
+  await gerenciador.carregar();
+}
+
+const login = criarTelaLogin({ aoEntrar: entrarNoApp });
+const cadastro = criarTelaCadastro({ aoCadastrar: entrarNoApp });
 
 function primeiroNome(nome) {
   return String(nome ?? "").trim().split(/\s+/)[0] || "";
 }
 
 function exibirApp(usuario) {
+  login.esconder();
+  cadastro.esconder();
   dom.app.hidden = false;
 
   if (usuario?.nome) {
@@ -48,6 +54,7 @@ function exibirApp(usuario) {
 function exibirLogin(mensagem = "") {
   dom.app.hidden = true;
   dom.usuarioNome.hidden = true;
+  cadastro.esconder();
   login.mostrar(mensagem);
 }
 
@@ -58,6 +65,16 @@ function sair() {
 
 dom.logout.addEventListener("click", sair);
 
+dom.linkCriarConta.addEventListener("click", () => {
+  login.esconder();
+  cadastro.mostrar();
+});
+
+dom.voltarLogin.addEventListener("click", () => {
+  cadastro.esconder();
+  login.mostrar();
+});
+
 window.addEventListener("auth:expirado", () => {
   encerrarSessao();
   exibirLogin("Sua sessão expirou. Entre novamente.");
@@ -67,7 +84,6 @@ interfaceApp.iniciar();
 
 if (temSessao()) {
   exibirApp(usuarioAtual());
-  login.esconder();
   gerenciador.carregar();
 } else {
   exibirLogin();

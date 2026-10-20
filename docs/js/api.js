@@ -8,6 +8,7 @@
  * Endpoints usados (ver README.md):
  *   POST   /auth/login                      -> token JWT (form-urlencoded)
  *   GET    /auth/me                         -> usuário autenticado
+ *   POST   /usuarios/                       -> cria usuário (201)
  *   GET    /tarefas/                        -> lista de tarefas
  *   GET    /tarefas/tarefa/{id}             -> uma tarefa
  *   POST   /tarefas/nova_tarefa             -> cria (201)
@@ -209,6 +210,11 @@ export const authApi = {
       formulario: true,
     }),
   me: (signal) => requisitar("/auth/me", { signal }),
+};
+
+export const usuariosApi = {
+  criar: (dados) =>
+    requisitar("/usuarios/", { method: "POST", body: dados, autenticado: false }),
 };
 
 export const tarefasApi = {

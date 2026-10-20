@@ -46,4 +46,6 @@ class Usuario(Base):
     senha = Column("senha", String, nullable=False)
     ativo = Column("ativo", Boolean, nullable=False, default=True)
 
-    tarefas = relationship("Tarefa", back_populates="usuario")
+    tarefas = relationship(
+        "Tarefa", back_populates="usuario", cascade="all, delete-orphan"
+    )

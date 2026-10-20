@@ -26,9 +26,26 @@ class UsuarioCreate(UsuarioBase):
 
 
 class UsuarioUpdate(BaseModel):
-    nome: Optional[str] = Field(None, description="Nome do usuario")
+    nome: Optional[str] = Field(
+        None, min_length=1, max_length=50, description="Nome do usuario"
+    )
     email: Optional[EmailStr] = Field(None, description="Email do usuario")
-    ativo: Optional[bool] = Field(None, description="Ativo do usuario")
+    senha: Optional[str] = Field(
+        None, min_length=6, max_length=128, description="Senha do usuario"
+    )
+
+    @field_validator("email")
+    @classmethod
+    def normalizar_email(cls, valor: Optional[EmailStr]) -> Optional[str]:
+        return valor.strip().lower() if valor is not None else None
+
+    @field_validator("senha")
+    @classmethod
+    def validar_senha(cls, valor: Optional[str]) -> Optional[str]:
+        if valor is not None and not valor.strip():
+            raise ValueError("A senha não pode conter apenas espaços")
+
+        return valor
 
 
 class UsuarioResponse(BaseModel):
