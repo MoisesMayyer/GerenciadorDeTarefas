@@ -42,7 +42,7 @@ class Usuario(Base):
 
     id = Column("id", Integer, primary_key=True, autoincrement=True, nullable=False)
     nome = Column("nome", String, nullable=False)
-    email = Column("email", String, nullable=False)
+    email = Column("email", String, nullable=False, unique=True, index=True)
     senha = Column("senha", String, nullable=False)
     ativo = Column("ativo", Boolean, nullable=False, default=True)
 
