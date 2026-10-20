@@ -41,7 +41,7 @@ source .venv/bin/activate        # Linux/macOS
 ### 3. Instalar as dependências
 
 ```bash
-pip install fastapi uvicorn sqlalchemy
+pip install -r requirements.txt
 ```
 
 ### 4. Iniciar a API
@@ -229,6 +229,7 @@ GerenciadorDeTarefas/
 │   │   ├── ui.js                # renderização e eventos
 │   │   └── main.js              # inicialização 
 ├── README.md
+├── requirements.txt
 └── .gitignore
 ```
 
@@ -255,7 +256,6 @@ https://moisesmayyer.github.io/GerenciadorDeTarefas/
 - Adicionar testes automatizados com Pytest
 - Hospedar a API (deploy) para o frontend publicado funcionar por completo
 - Implementar autenticação
-- Criar `requirements.txt`
 
 ## Status do projeto
 
