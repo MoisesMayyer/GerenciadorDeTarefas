@@ -46,7 +46,7 @@ def atualizar_tarefa(id: int, dados: TarefaUpdate, db: Session = Depends(get_db)
     if not tarefa_existe:
         raise HTTPException(status_code=404, detail="tarefa nao encontrada")
 
-    for campo, valor in dados.model_dump(exclude_unset=True).items():
+    for campo, valor in dados.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(tarefa_existe, campo, valor)
 
     db.commit()
