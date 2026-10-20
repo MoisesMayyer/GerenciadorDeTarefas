@@ -1,57 +1,27 @@
 /**
  * tasks.js — estado das tarefas e operações.
  *
- * Guarda a lista de tarefas em memória, expõe as operações (criar, atualizar,
- * alternar conclusão, cancelar, excluir) delegando o HTTP para `api.js`, e
- * avisa a interface através de um pequeno sistema de inscrição (observer).
- *
- * Nenhuma regra de negócio do backend é duplicada aqui: a API é a fonte da
- * verdade e, após cada operação, a lista é recarregada.
+ * Guarda a lista em memória, aplica filtros e busca, delega o HTTP para
+ * `api.js` e avisa a interface por um pequeno observer. Nenhuma regra de
+ * negócio do backend é duplicada: a API é a fonte da verdade.
  */
 
 import { tarefasApi, ApiError } from "./api.js";
+import {
+  STATUS,
+  ROTULOS_STATUS,
+  FILTRO_TODAS,
+  textoVazio,
+  normalizarLista,
+  normalizarTexto,
+  filtrarTarefas,
+  contarTarefas,
+  ordenarTarefas,
+  payloadCriacao,
+  payloadAtualizacao,
+} from "./task-model.js";
 
-/** Valores de status aceitos pela API. */
-export const STATUS = Object.freeze({
-  PENDENTE: "pendente",
-  CONCLUIDO: "concluido",
-  CANCELADO: "cancelado",
-});
-
-/** Rótulos acentuados para exibição (o valor enviado à API não muda). */
-export const ROTULOS_STATUS = Object.freeze({
-  pendente: "Pendente",
-  concluido: "Concluído",
-  cancelado: "Cancelado",
-});
-
-export const FILTRO_TODAS = "todas";
-
-const PESO_STATUS = { pendente: 0, concluido: 1, cancelado: 2 };
-
-/** Textos do estado vazio para cada filtro. */
-const VAZIO_POR_FILTRO = {
-  todas: {
-    titulo: "Nada por aqui ainda",
-    texto: "Use o botão “Nova tarefa”, na área de criação, para começar.",
-  },
-  pendente: {
-    titulo: "Nenhuma tarefa pendente",
-    texto: "Tudo em ordem por aqui.",
-  },
-  concluido: {
-    titulo: "Nenhuma tarefa concluída",
-    texto: "Marque o checkbox de uma tarefa para concluí-la.",
-  },
-  cancelado: {
-    titulo: "Nenhuma tarefa cancelada",
-    texto: "Tarefas canceladas aparecem aqui.",
-  },
-};
-
-export function textoVazio(filtro) {
-  return VAZIO_POR_FILTRO[filtro] ?? VAZIO_POR_FILTRO[FILTRO_TODAS];
-}
+export { STATUS, ROTULOS_STATUS, FILTRO_TODAS, textoVazio };
 
 /**
  * Cria o gerenciador de tarefas.
@@ -62,7 +32,9 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
   let tarefas = [];
   let carregando = false;
   let filtro = FILTRO_TODAS;
+  let busca = "";
   let erro = null;
+  let carregamentoAtual = 0;
 
   const inscritos = new Set();
 
@@ -71,61 +43,47 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
     for (const fn of inscritos) fn(snapshot);
   }
 
-  function contagens() {
-    const total = tarefas.length;
-    let pendente = 0;
-    let concluido = 0;
-    let cancelado = 0;
-
-    for (const tarefa of tarefas) {
-      if (tarefa.status === STATUS.PENDENTE) pendente += 1;
-      else if (tarefa.status === STATUS.CONCLUIDO) concluido += 1;
-      else if (tarefa.status === STATUS.CANCELADO) cancelado += 1;
-    }
-
-    return { total, pendente, concluido, cancelado };
-  }
-
   function visiveis() {
-    if (filtro === FILTRO_TODAS) return tarefas.slice();
-    return tarefas.filter((tarefa) => tarefa.status === filtro);
-  }
-
-  /** Ordena: pendentes primeiro, depois concluídas, canceladas por último; mais novas no topo. */
-  function ordenar(lista) {
-    return lista
-      .slice()
-      .sort((a, b) => (PESO_STATUS[a.status] - PESO_STATUS[b.status]) || (b.id - a.id));
+    return filtrarTarefas(tarefas, filtro, busca);
   }
 
   function estado() {
-    const contagem = contagens();
     return {
       tarefas,
       visiveis: visiveis(),
-      contagem,
+      contagem: contarTarefas(tarefas),
       carregando,
       filtro,
+      busca,
+      buscaAtiva: Boolean(normalizarTexto(busca)),
       erro,
     };
   }
 
   /** Recarrega a lista a partir da API. Em falha, guarda o erro e devolve-o. */
   async function carregar(signal) {
+    const carregamento = ++carregamentoAtual;
     carregando = true;
     erro = null;
     notificar();
 
     try {
       const lista = await api.listar(signal);
-      tarefas = ordenar(Array.isArray(lista) ? lista : []);
+      if (carregamento !== carregamentoAtual) return null;
+      tarefas = ordenarTarefas(normalizarLista(lista));
     } catch (falha) {
+      if (carregamento !== carregamentoAtual) return null;
       if (falha?.name === "AbortError") return null;
-      erro = falha instanceof ApiError ? falha : new ApiError("Falha ao carregar as tarefas.");
+      erro =
+        falha instanceof ApiError
+          ? falha
+          : new ApiError("Falha ao carregar as tarefas.");
       tarefas = [];
     } finally {
-      carregando = false;
-      notificar();
+      if (carregamento === carregamentoAtual) {
+        carregando = false;
+        notificar();
+      }
     }
 
     return erro;
@@ -133,12 +91,12 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
 
   /** Cria uma tarefa. Lança ApiError em falha; devolve o erro de recarga, se houver. */
   async function adicionar({ nome, descricao }) {
-    await api.criar({ nome, descricao });
+    await api.criar(payloadCriacao({ nome, descricao }));
     return carregar();
   }
 
   async function atualizar(id, dados) {
-    await api.atualizar(id, dados);
+    await api.atualizar(id, payloadAtualizacao(dados));
     return carregar();
   }
 
@@ -146,7 +104,9 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
     const tarefa = tarefas.find((item) => item.id === id);
     if (!tarefa || tarefa.status === STATUS.CANCELADO) return null;
 
-    const novoStatus = tarefa.status === STATUS.CONCLUIDO ? STATUS.PENDENTE : STATUS.CONCLUIDO;
+    const novoStatus =
+      tarefa.status === STATUS.CONCLUIDO ? STATUS.PENDENTE : STATUS.CONCLUIDO;
+
     return atualizar(id, { status: novoStatus });
   }
 
@@ -162,8 +122,20 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
   }
 
   function definirFiltro(novoFiltro) {
-    filtro = novoFiltro;
+    filtro =
+      novoFiltro === FILTRO_TODAS || Object.values(STATUS).includes(novoFiltro)
+        ? novoFiltro
+        : FILTRO_TODAS;
     notificar();
+  }
+
+  function definirBusca(texto) {
+    busca = String(texto ?? "");
+    notificar();
+  }
+
+  function limparBusca() {
+    definirBusca("");
   }
 
   return {
@@ -181,6 +153,8 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
     cancelar,
     excluir,
     definirFiltro,
+    definirBusca,
+    limparBusca,
     buscarPorId: (id) => tarefas.find((item) => item.id === id),
   };
 }

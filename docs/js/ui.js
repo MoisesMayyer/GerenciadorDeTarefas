@@ -1,16 +1,21 @@
 /**
  * ui.js — renderização e interação com o DOM.
  *
- * Concentra tudo que toca a página: desenhar a lista, atualizar contadores e
- * filtros, abrir/fechar o formulário e os modais, validar campos e exibir
- * mensagens. Não faz requisições HTTP (isso é `api.js`).
+ * Concentra tudo que toca a página: formulário, busca, filtros, lista, modais
+ * e feedback. Não faz requisições HTTP; isso continua em `api.js`.
  */
 
-import { STATUS, ROTULOS_STATUS, FILTRO_TODAS, textoVazio } from "./tasks.js";
 import { API_URL } from "./api.js";
+import {
+  STATUS,
+  ROTULOS_STATUS,
+  FILTRO_TODAS,
+  textoVazio,
+} from "./task-model.js";
 
 const qs = (seletor, escopo = document) => escopo.querySelector(seletor);
-const qsa = (seletor, escopo = document) => Array.from(escopo.querySelectorAll(seletor));
+const qsa = (seletor, escopo = document) =>
+  Array.from(escopo.querySelectorAll(seletor));
 
 /** Formata o id como "#001". */
 const formatarId = (id) => `#${String(id).padStart(3, "0")}`;
@@ -28,7 +33,7 @@ function el(tag, classe, texto) {
   return node;
 }
 
-/** Cria um elemento com marcação de ícone estática (SVG confiável, sem dados do usuário). */
+/** Cria um elemento com marcação de ícone estática (SVG confiável). */
 function elIcone(tag, classe, svg) {
   const node = el(tag, classe);
   node.innerHTML = svg;
@@ -52,21 +57,22 @@ const ICONES = Object.freeze({
 export function criarInterface({ gerenciador }) {
   /* ---------------- Referências do DOM ---------------- */
   const dom = {
-    abrirForm: qs("#abrir-form"),
     formNova: qs("#form-nova"),
     novoNome: qs("#novo-nome"),
     novoDescricao: qs("#novo-descricao"),
-    cancelarForm: qs("[data-cancelar-form]"),
 
     feedback: qs("#feedback"),
 
     filtros: qsa(".chip"),
-    contadorTotal: qs("#contador-total"),
     lista: qs("#lista"),
     loading: qs("#loading"),
     vazio: qs("#vazio"),
     vazioTitulo: qs("#vazio-titulo"),
     vazioTexto: qs("#vazio-texto"),
+    tasksScroll: qs("#tasks-scroll"),
+
+    busca: qs("#busca-tarefas"),
+    limparBusca: qs("#limpar-busca"),
 
     apiStatus: qs("#api-status"),
     apiStatusText: qs("#api-status-text"),
@@ -85,9 +91,11 @@ export function criarInterface({ gerenciador }) {
 
   /* ---------------- Estado local da interface ---------------- */
   let timeoutFeedback = null;
+  let timeoutBusca = null;
   let idEmEdicao = null;
   let tarefaParaExcluir = null;
   let idsRenderizados = new Set();
+  let ultimoErro = null;
 
   /* ---------------- Feedback ---------------- */
   function feedback(mensagem, tipo = "sucesso") {
@@ -102,43 +110,32 @@ export function criarInterface({ gerenciador }) {
     }, 4000);
   }
 
-  /* ---------------- Formulário expansível ---------------- */
-  function abrirFormulario() {
-    dom.formNova.hidden = false;
-    dom.abrirForm.setAttribute("aria-expanded", "true");
-    dom.abrirForm.hidden = true;
-    dom.novoNome.focus();
-  }
-
-  function fecharFormulario({ limpar = true } = {}) {
-    if (limpar) {
-      dom.formNova.reset();
-      limparErros(dom.formNova);
-    }
-    dom.formNova.hidden = true;
-    dom.abrirForm.hidden = false;
-    dom.abrirForm.setAttribute("aria-expanded", "false");
-    dom.abrirForm.focus();
-  }
-
   /* ---------------- Validação ---------------- */
+  function limparErroCampo(campo, form) {
+    campo.removeAttribute("aria-invalid");
+    campo.removeAttribute("aria-describedby");
+    const aviso = qs(`[data-erro-de="${campo.id}"]`, form);
+    if (aviso) {
+      aviso.textContent = "";
+      aviso.hidden = true;
+    }
+  }
+
   function limparErros(form) {
-    for (const campo of qsa("[required]", form)) {
-      campo.removeAttribute("aria-invalid");
-      const aviso = qs(`[data-erro-de="${campo.id}"]`, form);
-      if (aviso) {
-        aviso.textContent = "";
-        aviso.hidden = true;
-      }
+    for (const campo of qsa("input, textarea, select", form)) {
+      limparErroCampo(campo, form);
     }
   }
 
   function marcarErro(campo, mensagem) {
+    const form = campo.closest("form");
     campo.setAttribute("aria-invalid", "true");
-    const aviso = qs(`[data-erro-de="${campo.id}"]`, campo.closest("form"));
+
+    const aviso = form ? qs(`[data-erro-de="${campo.id}"]`, form) : null;
     if (aviso) {
       aviso.textContent = mensagem;
       aviso.hidden = false;
+      if (aviso.id) campo.setAttribute("aria-describedby", aviso.id);
     }
   }
 
@@ -188,6 +185,16 @@ export function criarInterface({ gerenciador }) {
   }
 
   /* ---------------- Renderização ---------------- */
+  function criarBadgeStatus(status) {
+    const badge = el(
+      "span",
+      "task__status",
+      ROTULOS_STATUS[status] ?? status
+    );
+    badge.dataset.status = status;
+    return badge;
+  }
+
   function criarCard(tarefa) {
     const card = el("li", "task");
     card.dataset.status = tarefa.status;
@@ -208,28 +215,37 @@ export function criarInterface({ gerenciador }) {
           ? `Reabrir tarefa: ${tarefa.nome}`
           : `Concluir tarefa: ${tarefa.nome}`
     );
+    check.title = check.getAttribute("aria-label");
     check.disabled = cancelado;
 
     const corpo = el("div", "task__body");
     corpo.append(el("p", "task__nome", tarefa.nome));
-    if (tarefa.descricao) corpo.append(el("p", "task__descricao", tarefa.descricao));
+    if (tarefa.descricao) {
+      corpo.append(el("p", "task__descricao", tarefa.descricao));
+    }
 
     const meta = el("div", "task__meta");
-    const status = el("span", "task__status", ROTULOS_STATUS[tarefa.status] ?? tarefa.status);
-    status.dataset.status = tarefa.status;
-    meta.append(status, el("span", "task__id", formatarId(tarefa.id)));
+    meta.append(criarBadgeStatus(tarefa.status), el("span", "task__id", formatarId(tarefa.id)));
     corpo.append(meta);
 
     const acoes = el("div", "task__actions");
     acoes.append(
       botaoIcone("editar", ICONES.editar, `Editar tarefa: ${tarefa.nome}`),
-      botaoIcone("excluir", ICONES.excluir, `Excluir tarefa: ${tarefa.nome}`, "icon-btn--danger")
+      botaoIcone(
+        "excluir",
+        ICONES.excluir,
+        `Excluir tarefa: ${tarefa.nome}`,
+        "icon-btn--danger"
+      )
     );
 
     card.append(check, corpo, acoes);
 
-    // Anima apenas os cards novos (evita reanimar a lista inteira)
-    if (!idsRenderizados.has(tarefa.id)) card.classList.add("task--entering");
+    // Anima apenas os cards novos (evita reanimar a lista inteira).
+    if (!idsRenderizados.has(tarefa.id)) {
+      card.classList.add("task--entering");
+      setTimeout(() => card.classList.remove("task--entering"), 260);
+    }
 
     return card;
   }
@@ -244,11 +260,9 @@ export function criarInterface({ gerenciador }) {
   }
 
   function render(estado) {
-    const mapa = { total: estado.contagem.total, ...estado.contagem };
     for (const campo of qsa("[data-contador]")) {
-      campo.textContent = mapa[campo.dataset.contador] ?? 0;
+      campo.textContent = estado.contagem[campo.dataset.contador] ?? 0;
     }
-    dom.contadorTotal.textContent = estado.contagem.total;
 
     for (const botao of dom.filtros) {
       const ativo = botao.dataset.filtro === estado.filtro;
@@ -256,25 +270,59 @@ export function criarInterface({ gerenciador }) {
       botao.setAttribute("aria-pressed", String(ativo));
     }
 
+    dom.limparBusca.hidden = !estado.busca;
+
     dom.loading.hidden = !estado.carregando;
     const semItens = estado.visiveis.length === 0;
     dom.vazio.hidden = estado.carregando || !semItens;
     dom.lista.hidden = estado.carregando || semItens;
 
     if (!estado.carregando && semItens) {
-      const texto = textoVazio(estado.filtro);
+      const texto = textoVazio(estado.filtro, estado.busca);
       dom.vazioTitulo.textContent = texto.titulo;
       dom.vazioTexto.textContent = texto.texto;
     }
 
     if (!estado.carregando) {
       dom.lista.replaceChildren(...estado.visiveis.map(criarCard));
-      idsRenderizados = new Set(estado.visiveis.map((t) => t.id));
+      idsRenderizados = new Set(estado.visiveis.map((tarefa) => tarefa.id));
     }
 
-    dom.apiStatusText.textContent = estado.erro?.tipo === "rede" ? "API offline" : API_URL;
-    if (estado.erro?.tipo === "rede") dom.apiStatus.dataset.online = "nao";
-    else if (!estado.erro) dom.apiStatus.dataset.online = "sim";
+    const offline = estado.erro?.tipo === "rede";
+    dom.apiStatusText.textContent = offline ? "Offline" : "Online";
+    dom.apiStatus.dataset.online = offline ? "nao" : "sim";
+    dom.apiStatus.title = `API: ${API_URL}`;
+
+    if (estado.erro && estado.erro !== ultimoErro) {
+      feedback(estado.erro.message, "erro");
+      ultimoErro = estado.erro;
+    } else if (!estado.erro) {
+      ultimoErro = null;
+    }
+  }
+
+  /* ---------------- Busca e filtros ---------------- */
+  function aplicarBusca() {
+    clearTimeout(timeoutBusca);
+    gerenciador.definirBusca(dom.busca.value);
+    dom.tasksScroll.scrollTop = 0;
+  }
+
+  function configurarBusca() {
+    dom.busca.addEventListener("input", () => {
+      dom.limparBusca.hidden = !dom.busca.value;
+      clearTimeout(timeoutBusca);
+      timeoutBusca = setTimeout(aplicarBusca, 120);
+    });
+
+    dom.busca.addEventListener("search", aplicarBusca);
+
+    dom.limparBusca.addEventListener("click", () => {
+      dom.busca.value = "";
+      dom.limparBusca.hidden = true;
+      aplicarBusca();
+      dom.busca.focus();
+    });
   }
 
   /* ---------------- Modais ---------------- */
@@ -310,9 +358,13 @@ export function criarInterface({ gerenciador }) {
       if (erro) feedback(erro.message, "erro");
       else feedback("Tarefa excluída.", "sucesso");
     } catch (falha) {
-      // Restaura o card caso a API recuse
-      dom.lista.querySelector(`[data-id="${tarefa.id}"]`)?.classList.remove("is-leaving");
-      feedback(falha?.message || "Não foi possível excluir a tarefa.", "erro");
+      dom.lista
+        .querySelector(`[data-id="${tarefa.id}"]`)
+        ?.classList.remove("is-leaving");
+      feedback(
+        falha?.message || "Não foi possível excluir a tarefa.",
+        "erro"
+      );
     }
   }
 
@@ -328,15 +380,6 @@ export function criarInterface({ gerenciador }) {
 
   /* ---------------- Eventos ---------------- */
 
-  dom.abrirForm.addEventListener("click", abrirFormulario);
-  dom.cancelarForm.addEventListener("click", () => fecharFormulario());
-
-  for (const botao of dom.filtros) {
-    botao.addEventListener("click", () => {
-      gerenciador.definirFiltro(botao.dataset.filtro ?? FILTRO_TODAS);
-    });
-  }
-
   dom.formNova.addEventListener("submit", async (evento) => {
     evento.preventDefault();
     if (!validar(dom.formNova)) return;
@@ -345,23 +388,34 @@ export function criarInterface({ gerenciador }) {
     const descricao = dom.novoDescricao.value.trim();
     const botao = qs('button[type="submit"]', dom.formNova);
 
-    const ok = await executar(() => gerenciador.adicionar({ nome, descricao }), {
-      sucesso: "Tarefa criada.",
-      botao,
-    });
+    const ok = await executar(
+      () => gerenciador.adicionar({ nome, descricao }),
+      { sucesso: "Tarefa criada.", botao }
+    );
 
-    if (ok) fecharFormulario();
+    if (ok) {
+      dom.formNova.reset();
+      limparErros(dom.formNova);
+      dom.novoNome.focus();
+    }
   });
 
-  for (const campo of qsa("[required]")) {
-    campo.addEventListener("input", () => {
-      campo.removeAttribute("aria-invalid");
-      const aviso = qs(`[data-erro-de="${campo.id}"]`, campo.closest("form"));
-      if (aviso) aviso.hidden = true;
+  for (const form of [dom.formNova, dom.formEditar]) {
+    for (const campo of qsa("input, textarea, select", form)) {
+      campo.addEventListener("input", () => limparErroCampo(campo, form));
+    }
+  }
+
+  for (const botao of dom.filtros) {
+    botao.addEventListener("click", () => {
+      gerenciador.definirFiltro(botao.dataset.filtro ?? FILTRO_TODAS);
+      dom.tasksScroll.scrollTop = 0;
     });
   }
 
-  // Ações dos cards (delegação de eventos)
+  configurarBusca();
+
+  // Ações dos cards (delegação de eventos).
   dom.lista.addEventListener("click", (evento) => {
     const botao = evento.target.closest("[data-acao]");
     if (!botao) return;

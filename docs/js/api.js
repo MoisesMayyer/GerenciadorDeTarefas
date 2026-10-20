@@ -6,6 +6,8 @@
  * Nenhum outro módulo chama `fetch` diretamente.
  *
  * Endpoints usados (ver README.md):
+ *   POST   /auth/login                      -> token JWT (form-urlencoded)
+ *   GET    /auth/me                         -> usuário autenticado
  *   GET    /tarefas/                        -> lista de tarefas
  *   GET    /tarefas/tarefa/{id}             -> uma tarefa
  *   POST   /tarefas/nova_tarefa             -> cria (201)
@@ -39,6 +41,33 @@ function resolverApiUrl() {
 }
 
 export const API_URL = resolverApiUrl();
+
+/** Chave usada para guardar o token JWT no navegador. */
+const CHAVE_TOKEN = "gerenciador.token";
+
+/** Lê o token salvo no navegador. */
+export function obterToken() {
+  try {
+    return localStorage.getItem(CHAVE_TOKEN);
+  } catch {
+    return null;
+  }
+}
+
+/** Salva o token no navegador; com valor vazio, remove. */
+export function definirToken(token) {
+  try {
+    if (token) localStorage.setItem(CHAVE_TOKEN, token);
+    else localStorage.removeItem(CHAVE_TOKEN);
+  } catch {
+    /* localStorage pode estar bloqueado */
+  }
+}
+
+/** Remove o token salvo (logout ou sessão expirada). */
+export function removerToken() {
+  definirToken(null);
+}
 
 /**
  * Guarda uma nova URL base no navegador.
@@ -93,17 +122,44 @@ async function lerErro(resposta) {
 /**
  * Executa uma requisição HTTP e trata resposta e falhas.
  * @param {string} caminho - caminho relativo, ex.: "/tarefas/"
- * @param {{method?: string, body?: unknown, signal?: AbortSignal}} [opcoes]
+ * @param {{
+ *   method?: string,
+ *   body?: unknown,
+ *   signal?: AbortSignal,
+ *   autenticado?: boolean,
+ *   formulario?: boolean
+ * }} [opcoes]
  */
-async function requisitar(caminho, { method = "GET", body, signal } = {}) {
+async function requisitar(
+  caminho,
+  { method = "GET", body, signal, autenticado = true, formulario = false } = {}
+) {
   const url = `${API_URL}${caminho}`;
+  const headers = {};
+
+  if (formulario) {
+    headers["Content-Type"] = "application/x-www-form-urlencoded";
+  } else if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (autenticado) {
+    const token = obterToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
   let resposta;
 
   try {
     resposta = await fetch(url, {
       method,
-      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
+      body:
+        body === undefined
+          ? undefined
+          : formulario
+            ? body.toString()
+            : JSON.stringify(body),
       signal,
     });
   } catch (erro) {
@@ -118,6 +174,13 @@ async function requisitar(caminho, { method = "GET", body, signal } = {}) {
   if (resposta.status === 204) return null;
 
   if (!resposta.ok) {
+    if (resposta.status === 401 && autenticado) {
+      removerToken();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("auth:expirado"));
+      }
+    }
+
     const mensagem = await lerErro(resposta);
     const tipo =
       resposta.status >= 500 ? "servidor"
@@ -136,6 +199,17 @@ async function requisitar(caminho, { method = "GET", body, signal } = {}) {
     return null;
   }
 }
+
+export const authApi = {
+  login: (email, senha) =>
+    requisitar("/auth/login", {
+      method: "POST",
+      body: new URLSearchParams({ username: email, password: senha }),
+      autenticado: false,
+      formulario: true,
+    }),
+  me: (signal) => requisitar("/auth/me", { signal }),
+};
 
 export const tarefasApi = {
   listar: (signal) => requisitar("/tarefas/", { signal }),
