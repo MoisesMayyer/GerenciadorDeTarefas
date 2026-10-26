@@ -12,12 +12,19 @@ API REST de gerenciamento de tarefas pessoais **multi-usuário**, com autentica�
 
 > **Projeto de estudo e portfólio.** Este projeto começou como um CRUD simples de tarefas em FastAPI e evoluiu para um sistema multi-usuário, com autenticação JWT, isolamento de dados por dono e uma interface própria.
 
+**No ar:**
+
+- **Frontend:** https://moisesmayyer.github.io/GerenciadorDeTarefas/
+- **API:** https://gerenciadordetarefas-eesn.onrender.com
+- **Banco:** SQLite no ambiente atual. O Render usa filesystem efêmero, então os dados são perdidos a cada deploy/restart; a migração para PostgreSQL está planejada.
+
 ## Sumário
 
 - [Sobre o projeto](#sobre-o-projeto)
 - [Funcionalidades](#funcionalidades)
 - [Stack](#stack)
 - [Como rodar](#como-rodar)
+- [Deploy](#deploy)
 - [Como usar](#como-usar)
 - [Endpoints](#endpoints)
 - [Regras de negócio](#regras-de-negócio)
@@ -37,7 +44,9 @@ O recorte principal é o **multi-usuário de verdade**: cada conta só enxerga a
 
 O frontend fica em `docs/` e consome exatamente o contrato atual da API. Não existem prioridade, vencimento, etiquetas ou busca no servidor: a interface trabalha apenas com os campos que o backend oferece, e a busca e os filtros são locais, sobre as tarefas já carregadas.
 
-A API é servida com documentação interativa automática em `/docs` (Swagger UI) e `/redoc`.
+A API está publicada no Render e o frontend no GitHub Pages. A documentação interativa automática fica em `/docs` (Swagger UI) e `/redoc`.
+
+> **Banco de dados:** o projeto roda em **SQLite** (`backend/database.db`). Como o filesystem do Render é efêmero, os dados não sobrevivem a deploys/restarts. A troca para **PostgreSQL** está planejada e é o próximo passo de infraestrutura.
 
 ## Funcionalidades
 
@@ -50,7 +59,7 @@ A API é servida com documentação interativa automática em `/docs` (Swagger U
 - Busca sem distinção de acentos ou maiúsculas e filtros por status
 - Contadores de tarefas pendentes, concluídas e canceladas
 - Layout responsivo, navegação por teclado e suporte a `prefers-reduced-motion`
-- Banco SQLite criado automaticamente na primeira execução
+- Banco SQLite criado automaticamente na primeira execução (migração para PostgreSQL planejada)
 
 ## Stack
 
@@ -60,12 +69,13 @@ A API é servida com documentação interativa automática em `/docs` (Swagger U
 | Framework | FastAPI 0.143 |
 | ORM | SQLAlchemy 2.1 |
 | Validação/serialização | Pydantic 2.14 + pydantic-settings |
-| Banco | SQLite |
+| Banco | SQLite (atual) → PostgreSQL (planejado) |
 | Servidor | Uvicorn |
 | Hash de senha | pwdlib (Argon2) |
 | Token | PyJWT (HS256) |
 | Frontend | HTML5, CSS3 e JavaScript (módulos ES) |
 | Comunicação | Fetch API |
+| Deploy | Render (API) + GitHub Pages (frontend) |
 | Qualidade | TestClient (manual) e verificação de sintaxe dos módulos JS |
 
 ## Como rodar
@@ -94,7 +104,10 @@ Crie `backend/.env` (ignorado pelo Git) com a chave gerada:
 SECRET_KEY=<a chave gerada acima>
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
+CORS_ORIGINS=https://moisesmayyer.github.io,http://localhost:5500,http://127.0.0.1:5500
 ```
+
+`CORS_ORIGINS` é uma lista separada por vírgulas. O padrão no código é apenas `https://moisesmayyer.github.io`; as origens locais acima servem para rodar o frontend em `http://localhost:5500` durante o desenvolvimento.
 
 ```bash
 # 5. Suba a API (de dentro de backend/)
@@ -107,6 +120,42 @@ Acesse **http://localhost:8000/docs** para a documentação interativa.
 > **Atenção ao diretório:** o módulo da aplicação é `app.main`, então o Uvicorn precisa ser executado de dentro de `backend/`. O banco é criado em `backend/database.db`, com as tabelas `usuarios` e `tarefas`.
 
 Para **resetar** os dados, pare o servidor e apague `backend/database.db`; ele será recriado vazio no próximo start. O schema é criado com `create_all`, então alterações de colunas exigem recriar o banco (ou adotar migrations).
+
+## Deploy
+
+O deploy atual é simples: **API no Render** e **frontend no GitHub Pages**.
+
+### API (Render)
+
+- **Root directory:** `backend`
+- **Build command:** `pip install -r ../requirements.txt`
+- **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **Variáveis de ambiente:** `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES` e, se necessário, `CORS_ORIGINS`.
+
+O arquivo `backend/.env` não é versionado e não vai para o Render. As mesmas chaves precisam existir em **Environment** no dashboard do serviço.
+
+Se você já tiver criado `CORS_ORIGINS` no Render, remova a variável ou deixe apenas `https://moisesmayyer.github.io`. Assim o padrão do código (somente GitHub Pages) é respeitado.
+
+### Frontend (GitHub Pages)
+
+- O site é publicado a partir de `docs/` na branch `main`.
+- `docs/js/api.js` usa `https://gerenciadordetarefas-eesn.onrender.com` como URL padrão.
+- Para apontar para outra API sem editar o código, defina `window.TASK_API_URL` antes do `main.js` ou use `definirApiUrl()` no console.
+- Alterações em `docs/js/api.js` só chegam ao site depois de commit + push e do build do GitHub Pages.
+
+### CORS
+
+A API aceita apenas a origem do frontend publicado:
+
+```env
+CORS_ORIGINS=https://moisesmayyer.github.io
+```
+
+Para rodar o frontend localmente contra a API local, adicione as origens locais no `backend/.env` (como no exemplo da seção [Como rodar](#como-rodar)). Em produção, mantenha somente o domínio do GitHub Pages.
+
+### Banco de dados
+
+O projeto roda em **SQLite**, no arquivo `backend/database.db`, criado automaticamente por `create_all`. No Render, o filesystem é **efêmero**: os dados são perdidos em cada deploy/restart (e a instância gratuita hiberna após inatividade). A migração para **PostgreSQL** está planejada; até lá, o deploy serve como demonstração funcional, não como armazenamento definitivo.
 
 ## Como usar
 
@@ -193,13 +242,17 @@ curl -i -X DELETE http://localhost:8000/tarefas/deletar_tarefa/1 \
 
 ### 6. Abrir o frontend
 
-Em outro terminal, a partir da raiz do projeto:
+O frontend também está publicado em **https://moisesmayyer.github.io/GerenciadorDeTarefas/** e já aponta para a API no Render.
+
+Para rodar localmente, em outro terminal, a partir da raiz do projeto:
 
 ```bash
 python -m http.server 5500 --directory docs
 ```
 
 Depois abra **http://localhost:5500**, clique em **Criar conta** e informe nome, e-mail e senha. Ao concluir, a conta já entra direto no sistema; nas próximas visitas, use o e-mail e a senha cadastrados.
+
+> Para o frontend local chamar a API local, o `backend/.env` precisa incluir `http://localhost:5500` e `http://127.0.0.1:5500` em `CORS_ORIGINS`. Se o navegador já tiver uma URL antiga salva em `gerenciador.apiUrl`, limpe essa chave do `localStorage` ou use `localStorage.removeItem("gerenciador.apiUrl")` no console.
 
 ## Endpoints
 
@@ -289,6 +342,7 @@ usuarios (1) ──< tarefas
 - `usuario_id` é uma chave estrangeira para `usuarios.id`. No schema atual a coluna é anulável e não indexada; as rotas sempre a preenchem, mas esse é um ponto a endurecer (ver [O que falta](#o-que-falta)).
 - Não há tabela de associação nem compartilhamento de tarefas entre contas.
 - A exclusão de usuário é feita pela API e remove as tarefas em cascata pelo ORM (`cascade="all, delete-orphan"`).
+- O banco atual é **SQLite** (`backend/database.db`). O schema é criado por `create_all`, sem migrations versionadas. A migração para **PostgreSQL** está planejada; nela, `usuario_id` deve passar a `NOT NULL` e indexado.
 
 ## Estrutura do projeto
 
@@ -348,10 +402,10 @@ A separação em camadas foi intencional: `task-model.js` é puro (sem DOM e sem
 
 > O frontend usa módulos ES, então precisa ser servido por HTTP — abrir o `index.html` direto pelo sistema de arquivos (`file://`) não funciona.
 
-Versão publicada (apenas a interface, sem API no ar):
+Versão publicada (frontend + API no ar):
 https://moisesmayyer.github.io/GerenciadorDeTarefas/
 
-Como a API ainda não tem deploy, essa versão publicada serve como demonstração visual; criar, editar e excluir dependem da API rodando localmente.
+A API padrão do frontend é `https://gerenciadordetarefas-eesn.onrender.com`. Como o Render gratuito hiberna, a primeira requisição depois de um período de inatividade pode levar alguns segundos (cold start). O frontend aguarda a resposta e mostra o estado de carregamento.
 
 ## Decisões técnicas
 
@@ -365,13 +419,15 @@ Como a API ainda não tem deploy, essa versão publicada serve como demonstraç�
 
 **`model_dump(exclude_unset=True, exclude_none=True)` no `PUT`.** Sem isso, um campo omitido ou enviado como `null` sobrescreveria dados existentes. A atualização é parcial de verdade: só os campos presentes e não nulos são aplicados.
 
-**`create_all` em vez de Alembic.** Decisão de escopo: é um projeto pessoal e o banco pode ser recriado a qualquer momento. Em um cenário de produção, a evolução do schema seria feita com migrations versionadas.
+**`create_all` em vez de Alembic.** Decisão de escopo: é um projeto pessoal e o banco pode ser recriado a qualquer momento. Em um cenário de produção, a evolução do schema seria feita com migrations versionadas — item previsto junto com a migração para PostgreSQL.
 
 **Busca local no frontend.** O backend não oferece busca, paginação ou filtros. Em vez de inventar endpoints ou campos, a interface carrega a lista do usuário e filtra em memória. Quando o volume crescer, o próximo passo é mover isso para a API com `skip`/`limit` e parâmetros de busca.
 
+**Mutações atualizam o estado local.** `POST`, `PUT` e `PATCH` devolvem a tarefa alterada e `DELETE` responde `204`. O frontend aplica essa resposta na lista em memória em vez de refazer `GET /tarefas/` depois de cada ação. A lista completa só é buscada no login/inicialização (ou como fallback se a resposta vier inválida), o que reduz de duas para uma requisição por operação.
+
 **Frontend em camadas.** O modelo puro (`task-model.js`) não conhece DOM nem HTTP. Isso mantém regras de normalização, payloads e filtros testáveis de forma isolada e deixa a UI substituível.
 
-**CORS liberado apenas para desenvolvimento.** O `allow_origins=["*"]` funciona para rodar o frontend em outra porta local, mas deve ser restringido antes de qualquer deploy.
+**CORS restrito ao GitHub Pages.** `CORS_ORIGINS` é uma lista separada por vírgulas, com padrão `https://moisesmayyer.github.io`. Como a autenticação usa Bearer token (e não cookies), `allow_credentials=False`. Para desenvolvimento local, as origens `http://localhost:5500` e `http://127.0.0.1:5500` ficam apenas no `backend/.env`, que não é versionado.
 
 ## Qualidade
 
@@ -399,9 +455,10 @@ Itens conhecidos, em ordem de prioridade:
 
 **Essencial**
 
+- [ ] **Migrar de SQLite para PostgreSQL** (persistência real no Render; hoje os dados são perdidos em deploy/restart)
 - [ ] Suíte de testes com `pytest` + `TestClient` (autenticação, isolamento entre usuários, CRUD e validação)
-- [ ] Deploy da API para o frontend publicado funcionar por completo
-- [ ] `usuario_id` `NOT NULL`, indexado e com política de cascade ou soft delete
+- [x] Deploy da API para o frontend publicado funcionar por completo
+- [ ] `usuario_id` `NOT NULL`, indexado e com política de cascade ou soft delete (aproveitar a migração para PostgreSQL)
 
 **Qualidade**
 
@@ -416,13 +473,13 @@ Itens conhecidos, em ordem de prioridade:
 
 **Produção**
 
-- [ ] CORS restrito aos domínios do frontend
+- [x] CORS restrito aos domínios do frontend
 - [ ] Rate limiting no login
 - [ ] Refresh token e revogação de access token
 - [ ] CI no GitHub Actions rodando testes e verificação de sintaxe
 - [ ] Dockerfile e docker-compose
-- [ ] Deploy com link público
+- [x] Deploy com link público
 
 ## Status do projeto
 
-Em desenvolvimento. O CRUD de tarefas, a autenticação JWT e o frontend estão funcionais. A API roda localmente com SQLite; ainda não há deploy.
+Em desenvolvimento, com deploy ativo: a API roda no Render e o frontend no GitHub Pages. O CRUD de tarefas, a autenticação JWT e a interface estão funcionais. O banco atual é **SQLite**, que no Render é efêmero; a migração para **PostgreSQL** é o próximo passo para persistir os dados entre deploys.

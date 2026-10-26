@@ -17,7 +17,7 @@
  *   DELETE /tarefas/deletar_tarefa/{id}     -> remove (204)
  */
 
-const API_URL_PADRAO = "http://127.0.0.1:8000";
+const API_URL_PADRAO = "https://gerenciadordetarefas-eesn.onrender.com";
 
 /** Chave usada para lembrar a URL escolhida no navegador. */
 const CHAVE_STORAGE = "gerenciador.apiUrl";
@@ -161,12 +161,14 @@ async function requisitar(
           : formulario
             ? body.toString()
             : JSON.stringify(body),
+      // A lista de tarefas é dinâmica: não deixa o navegador reutilizar cache.
+      cache: "no-store",
       signal,
     });
   } catch (erro) {
     if (erro?.name === "AbortError") throw erro;
     throw new ApiError(
-      `Não foi possível falar com a API em ${API_URL}. Verifique se o backend está rodando.`,
+      `Não foi possível falar com a API em ${API_URL}. Verifique sua conexão ou se o serviço está no ar.`,
       { tipo: "rede" }
     );
   }
