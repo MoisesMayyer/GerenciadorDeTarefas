@@ -5,6 +5,7 @@ API REST de gerenciamento de tarefas pessoais **multi-usuário**, com autentica�
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.143-009688?logo=fastapi&logoColor=white)
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.1-D71F00)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![Pydantic](https://img.shields.io/badge/Pydantic-2.14-E92063)
 ![PyJWT](https://img.shields.io/badge/PyJWT-2.15-000000?logo=jsonwebtokens&logoColor=white)
 ![Frontend](https://img.shields.io/badge/Frontend-HTML%20%2B%20CSS%20%2B%20JS-F7DF1E?logo=javascript&logoColor=black)
@@ -16,7 +17,7 @@ API REST de gerenciamento de tarefas pessoais **multi-usuário**, com autentica�
 
 - **Frontend:** https://moisesmayyer.github.io/GerenciadorDeTarefas/
 - **API:** https://gerenciadordetarefas-eesn.onrender.com
-- **Banco:** SQLite no ambiente atual. O Render usa filesystem efêmero, então os dados são perdidos a cada deploy/restart; a migração para PostgreSQL está planejada.
+- **Banco:** PostgreSQL no ambiente atual.
 
 ## Sumário
 
@@ -46,7 +47,7 @@ O frontend fica em `docs/` e consome exatamente o contrato atual da API. Não ex
 
 A API está publicada no Render e o frontend no GitHub Pages. A documentação interativa automática fica em `/docs` (Swagger UI) e `/redoc`.
 
-> **Banco de dados:** o projeto roda em **SQLite** (`backend/database.db`). Como o filesystem do Render é efêmero, os dados não sobrevivem a deploys/restarts. A troca para **PostgreSQL** está planejada e é o próximo passo de infraestrutura.
+> **Banco de dados:** o projeto roda em **PostgreSQL**. O banco é criado/atualizado via migrations (planejado: Alembic) e persiste entre deploys no Render.
 
 ## Funcionalidades
 
@@ -59,7 +60,7 @@ A API está publicada no Render e o frontend no GitHub Pages. A documentação i
 - Busca sem distinção de acentos ou maiúsculas e filtros por status
 - Contadores de tarefas pendentes, concluídas e canceladas
 - Layout responsivo, navegação por teclado e suporte a `prefers-reduced-motion`
-- Banco SQLite criado automaticamente na primeira execução (migração para PostgreSQL planejada)
+- Banco PostgreSQL (migrações planejadas com Alembic)
 
 ## Stack
 
@@ -69,7 +70,7 @@ A API está publicada no Render e o frontend no GitHub Pages. A documentação i
 | Framework | FastAPI 0.143 |
 | ORM | SQLAlchemy 2.1 |
 | Validação/serialização | Pydantic 2.14 + pydantic-settings |
-| Banco | SQLite (atual) → PostgreSQL (planejado) |
+| Banco | PostgreSQL (via psycopg) |
 | Servidor | Uvicorn |
 | Hash de senha | pwdlib (Argon2) |
 | Token | PyJWT (HS256) |
@@ -117,9 +118,9 @@ uvicorn app.main:app --reload --port 8000
 
 Acesse **http://localhost:8000/docs** para a documentação interativa.
 
-> **Atenção ao diretório:** o módulo da aplicação é `app.main`, então o Uvicorn precisa ser executado de dentro de `backend/`. O banco é criado em `backend/database.db`, com as tabelas `usuarios` e `tarefas`.
+> **Atenção ao diretório:** o módulo da aplicação é `app.main`, então o Uvicorn precisa ser executado de dentro de `backend/`. Certifique-se de que o PostgreSQL está rodando e acessível via `DATABASE_URL` no `.env`. As tabelas são criadas com `create_all` na inicialização (migrações com Alembic planejadas).
 
-Para **resetar** os dados, pare o servidor e apague `backend/database.db`; ele será recriado vazio no próximo start. O schema é criado com `create_all`, então alterações de colunas exigem recriar o banco (ou adotar migrations).
+Para **resetar** os dados, use `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` no PostgreSQL ou rode as migrations do Alembic (quando implementado). O schema é criado com `create_all`, então alterações de colunas exigem migrations.
 
 ## Deploy
 
@@ -155,7 +156,7 @@ Para rodar o frontend localmente contra a API local, adicione as origens locais 
 
 ### Banco de dados
 
-O projeto roda em **SQLite**, no arquivo `backend/database.db`, criado automaticamente por `create_all`. No Render, o filesystem é **efêmero**: os dados são perdidos em cada deploy/restart (e a instância gratuita hiberna após inatividade). A migração para **PostgreSQL** está planejada; até lá, o deploy serve como demonstração funcional, não como armazenamento definitivo.
+O projeto roda em **PostgreSQL**, configurado via `DATABASE_URL` no `.env`. No Render, use um banco PostgreSQL gerenciado (ex.: Render PostgreSQL, Neon, Supabase) para persistência real entre deploys. O driver usado é `psycopg` (v3). Migrações com Alembic estão planejadas.
 
 ## Como usar
 
@@ -342,7 +343,7 @@ usuarios (1) ──< tarefas
 - `usuario_id` é uma chave estrangeira para `usuarios.id`. No schema atual a coluna é anulável e não indexada; as rotas sempre a preenchem, mas esse é um ponto a endurecer (ver [O que falta](#o-que-falta)).
 - Não há tabela de associação nem compartilhamento de tarefas entre contas.
 - A exclusão de usuário é feita pela API e remove as tarefas em cascata pelo ORM (`cascade="all, delete-orphan"`).
-- O banco atual é **SQLite** (`backend/database.db`). O schema é criado por `create_all`, sem migrations versionadas. A migração para **PostgreSQL** está planejada; nela, `usuario_id` deve passar a `NOT NULL` e indexado.
+- O banco atual é **PostgreSQL** (via `psycopg`). O schema é criado por `create_all` na inicialização; migrações versionadas com Alembic estão planejadas. Nela, `usuario_id` deve passar a `NOT NULL` e indexado.
 
 ## Estrutura do projeto
 
@@ -368,8 +369,7 @@ GerenciadorDeTarefas/
 │   │   ├── depends.py           # get_db e verificação do JWT
 │   │   ├── security.py          # hash Argon2 e criação do token
 │   │   └── main.py              # app FastAPI, CORS e registro dos routers
-│   ├── .env                     # segredos (ignorado pelo Git)
-│   └── database.db              # SQLite gerado na primeira execução
+│   └── .env                     # segredos (ignorado pelo Git)
 ├── docs/                        # frontend (publicado no GitHub Pages)
 │   ├── css/style.css
 │   ├── js/
@@ -455,10 +455,10 @@ Itens conhecidos, em ordem de prioridade:
 
 **Essencial**
 
-- [ ] **Migrar de SQLite para PostgreSQL** (persistência real no Render; hoje os dados são perdidos em deploy/restart)
+- [x] **Migrar de SQLite para PostgreSQL** (persistência real no Render; dados persistem entre deploys)
 - [ ] Suíte de testes com `pytest` + `TestClient` (autenticação, isolamento entre usuários, CRUD e validação)
 - [x] Deploy da API para o frontend publicado funcionar por completo
-- [ ] `usuario_id` `NOT NULL`, indexado e com política de cascade ou soft delete (aproveitar a migração para PostgreSQL)
+- [ ] `usuario_id` `NOT NULL`, indexado e com política de cascade ou soft delete
 
 **Qualidade**
 
@@ -482,4 +482,4 @@ Itens conhecidos, em ordem de prioridade:
 
 ## Status do projeto
 
-Em desenvolvimento, com deploy ativo: a API roda no Render e o frontend no GitHub Pages. O CRUD de tarefas, a autenticação JWT e a interface estão funcionais. O banco atual é **SQLite**, que no Render é efêmero; a migração para **PostgreSQL** é o próximo passo para persistir os dados entre deploys.
+Em desenvolvimento, com deploy ativo: a API roda no Render e o frontend no GitHub Pages. O CRUD de tarefas, a autenticação JWT e a interface estão funcionais. O banco atual é **PostgreSQL** (via `psycopg`), garantindo persistência entre deploys. Próximos passos: suíte de testes automatizados, migrations com Alembic e melhorias de produção.

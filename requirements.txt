@@ -4,6 +4,7 @@ uvicorn==0.54.0
 
 # Banco de dados
 SQLAlchemy==2.1.5
+psycopg[binary]==3.3.6
 
 # Validação e configuração
 pydantic==2.14.1
