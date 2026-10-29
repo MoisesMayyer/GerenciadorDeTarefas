@@ -41,8 +41,8 @@ def banco_limpo():
 @pytest.fixture
 def db_session():
 
-    Session = sessionmaker(bind=engine)
-    sessao = Session()
+    session = sessionmaker(bind=engine)
+    sessao = session()
     try:
         yield sessao
     finally:
