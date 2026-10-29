@@ -9,6 +9,9 @@
  *   POST   /auth/login                      -> token JWT (form-urlencoded)
  *   GET    /auth/me                         -> usuário autenticado
  *   POST   /usuarios/                       -> cria usuário (201)
+ *   PUT    /usuarios/{id}                   -> edita nome, e-mail e/ou senha
+ *   PATCH  /usuarios/{id}/cancelar          -> desativa a conta
+ *   DELETE /usuarios/{id}                   -> exclui a conta e as tarefas (204)
  *   GET    /tarefas/                        -> lista de tarefas
  *   GET    /tarefas/tarefa/{id}             -> uma tarefa
  *   POST   /tarefas/nova_tarefa             -> cria (201)
@@ -217,6 +220,10 @@ export const authApi = {
 export const usuariosApi = {
   criar: (dados) =>
     requisitar("/usuarios/", { method: "POST", body: dados, autenticado: false }),
+  atualizar: (id, dados) =>
+    requisitar(`/usuarios/${id}`, { method: "PUT", body: dados }),
+  cancelar: (id) => requisitar(`/usuarios/${id}/cancelar`, { method: "PATCH" }),
+  excluir: (id) => requisitar(`/usuarios/${id}`, { method: "DELETE" }),
 };
 
 export const tarefasApi = {

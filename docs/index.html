@@ -278,7 +278,15 @@
           </span>
         </button>
 
-        <span class="user-pill" id="usuario-nome" hidden></span>
+        <button
+          class="user-pill"
+          type="button"
+          id="usuario-nome"
+          aria-haspopup="dialog"
+          aria-label="Abrir meu perfil"
+          title="Abrir meu perfil"
+          hidden
+        ></button>
 
         <button type="button" class="btn btn--ghost btn--compact" id="logout">Sair</button>
       </div>
@@ -468,6 +476,124 @@
       <footer class="modal__actions">
         <button type="button" class="btn btn--ghost" data-fechar>Manter</button>
         <button type="button" class="btn btn--danger" id="confirmar-excluir">Excluir</button>
+      </footer>
+    </div>
+  </dialog>
+
+  <dialog class="modal" id="modal-perfil" aria-labelledby="modal-perfil-titulo">
+    <form class="modal__card" id="form-perfil" novalidate>
+      <button type="button" class="icon-btn modal__close" data-fechar-perfil aria-label="Fechar perfil" title="Fechar">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6 6 18"/>
+        </svg>
+      </button>
+
+      <header class="modal__head">
+        <p class="modal__eyebrow">Sua conta</p>
+        <h2 class="modal__title" id="modal-perfil-titulo">Minha conta</h2>
+        <p class="modal__text">Atualize seus dados ou encerre a conta.</p>
+      </header>
+
+      <div class="field">
+        <label class="field__label" for="perfil-nome">
+          Nome <span class="field__req" aria-hidden="true">*</span>
+        </label>
+        <input
+          class="field__input"
+          id="perfil-nome"
+          name="nome"
+          type="text"
+          maxlength="50"
+          autocomplete="name"
+          required
+          aria-required="true"
+        >
+        <p class="field__error" id="erro-perfil-nome" data-erro-de="perfil-nome" hidden></p>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="perfil-email">
+          E-mail <span class="field__req" aria-hidden="true">*</span>
+        </label>
+        <input
+          class="field__input"
+          id="perfil-email"
+          name="email"
+          type="email"
+          maxlength="254"
+          autocomplete="username"
+          required
+          aria-required="true"
+        >
+        <p class="field__error" id="erro-perfil-email" data-erro-de="perfil-email" hidden></p>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="perfil-senha">
+          Nova senha <span class="field__optional">Opcional</span>
+        </label>
+        <input
+          class="field__input"
+          id="perfil-senha"
+          name="senha"
+          type="password"
+          minlength="6"
+          maxlength="128"
+          autocomplete="new-password"
+          placeholder="Deixe em branco para manter"
+        >
+        <p class="field__hint">Mínimo de 6 caracteres.</p>
+        <p class="field__error" id="erro-perfil-senha" data-erro-de="perfil-senha" hidden></p>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="perfil-confirmar">Confirmar nova senha</label>
+        <input
+          class="field__input"
+          id="perfil-confirmar"
+          name="confirmar"
+          type="password"
+          minlength="6"
+          maxlength="128"
+          autocomplete="new-password"
+          placeholder="Repita a nova senha"
+        >
+        <p class="field__error" id="erro-perfil-confirmar" data-erro-de="perfil-confirmar" hidden></p>
+      </div>
+
+      <p class="login__erro" id="perfil-erro" role="alert" hidden></p>
+
+      <footer class="modal__actions">
+        <button type="button" class="btn btn--ghost" data-fechar-perfil>Fechar</button>
+        <button type="submit" class="btn btn--primary" id="perfil-salvar">Salvar alterações</button>
+      </footer>
+
+      <div class="perfil__zona">
+        <p class="perfil__zona-titulo">Zona de risco</p>
+        <p class="perfil__zona-texto">
+          Desativar impede novos acessos. Excluir apaga a conta e todas as tarefas.
+        </p>
+        <div class="perfil__acoes">
+          <button type="button" class="btn btn--ghost" id="perfil-desativar">Desativar conta</button>
+          <button type="button" class="btn btn--danger" id="perfil-excluir">Excluir conta</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal modal--confirm" id="modal-conta" aria-labelledby="conta-titulo">
+    <div class="modal__card">
+      <span class="modal__warn" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        </svg>
+      </span>
+      <h2 class="modal__title" id="conta-titulo">Desativar conta?</h2>
+      <p class="modal__text" id="conta-texto"></p>
+
+      <footer class="modal__actions">
+        <button type="button" class="btn btn--ghost" data-fechar-perfil>Voltar</button>
+        <button type="button" class="btn btn--danger" id="conta-confirmar">Confirmar</button>
       </footer>
     </div>
   </dialog>

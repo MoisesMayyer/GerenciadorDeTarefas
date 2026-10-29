@@ -2,6 +2,7 @@
 
 import { criarGerenciadorTarefas } from "./tasks.js";
 import { criarInterface } from "./ui.js";
+import { criarTelaPerfil } from "./perfil.js";
 import {
   criarTelaCadastro,
   criarTelaLogin,
@@ -15,6 +16,17 @@ iniciarTema();
 
 const gerenciador = criarGerenciadorTarefas();
 const interfaceApp = criarInterface({ gerenciador });
+
+const perfil = criarTelaPerfil({
+  aoAtualizar(usuario) {
+    exibirApp(usuario);
+    interfaceApp.feedback("Perfil atualizado.", "sucesso");
+  },
+  aoEncerrar(mensagem) {
+    encerrarSessao();
+    exibirLogin(mensagem);
+  },
+});
 
 const dom = {
   app: document.querySelector("#app"),
@@ -47,6 +59,7 @@ function exibirApp(usuario) {
     dom.saudacao.textContent = nome ? `Olá, ${nome}` : "Olá";
     dom.usuarioNome.textContent = nome || usuario.nome;
     dom.usuarioNome.title = usuario.email ?? "";
+    dom.usuarioNome.setAttribute("aria-label", `Abrir meu perfil: ${usuario.nome}`);
     dom.usuarioNome.hidden = false;
   }
 }
@@ -54,6 +67,7 @@ function exibirApp(usuario) {
 function exibirLogin(mensagem = "") {
   dom.app.hidden = true;
   dom.usuarioNome.hidden = true;
+  perfil.fechar();
   cadastro.esconder();
   login.mostrar(mensagem);
 }
@@ -64,6 +78,10 @@ function sair() {
 }
 
 dom.logout.addEventListener("click", sair);
+
+dom.usuarioNome.addEventListener("click", () => {
+  perfil.abrir(usuarioAtual());
+});
 
 dom.linkCriarConta.addEventListener("click", () => {
   login.esconder();

@@ -41,7 +41,7 @@ export function usuarioAtual() {
   }
 }
 
-function salvarUsuario(usuario) {
+export function salvarUsuario(usuario) {
   try {
     localStorage.setItem(
       CHAVE_USUARIO,

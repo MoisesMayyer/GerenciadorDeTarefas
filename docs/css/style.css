@@ -426,8 +426,14 @@ svg {
   border-radius: 999px;
   color: var(--text-2);
   font-size: var(--step--1);
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.user-pill:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 
 /* ==========================================================================
@@ -1281,6 +1287,40 @@ select.field__input {
   background: var(--danger-soft);
   border-radius: var(--radius);
   color: var(--danger);
+}
+
+/* Perfil — zona de risco */
+
+.perfil__zona {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.perfil__zona-titulo {
+  color: var(--text-3);
+  font-size: var(--step--2);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.perfil__zona-texto {
+  color: var(--text-3);
+  font-size: var(--step--1);
+}
+
+.perfil__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.perfil__acoes .btn {
+  flex: 1 1 160px;
 }
 
 /* ==========================================================================

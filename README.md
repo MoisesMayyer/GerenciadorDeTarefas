@@ -345,11 +345,12 @@ O frontend não usa framework nem bibliotecas de UI. A direção **Calm Ledger**
 
 - A primeira tela é o **login**; com sessão válida, o app abre direto.
 - O token JWT fica no `localStorage` e é enviado nas requisições; logout limpa a sessão e token inválido volta ao login.
+- O nome no topo abre o **perfil** em modal: editar nome, e-mail e senha, desativar ou excluir a conta.
 - Tema claro/escuro salvo em `gerenciador.tema`; na primeira visita, segue o sistema.
 - Busca e filtros são **locais**, sobre a lista já carregada.
 - Duas colunas no desktop e uma no mobile, com foco visível e movimento reduzido.
 
-Separação intencional: `task-model.js` é puro (sem DOM/HTTP), `tasks.js` concentra estado e ações, `ui.js` cuida do DOM, `theme.js` do tema e `main.js` orquestra.
+Separação intencional: `task-model.js` é puro (sem DOM/HTTP), `tasks.js` concentra estado e ações, `perfil.js` cuida da conta, `ui.js` cuida do DOM, `theme.js` do tema e `main.js` orquestra.
 
 > Módulos ES exigem HTTP; `file://` não funciona.
 
@@ -402,7 +403,7 @@ Em ordem de prioridade:
 
 **Qualidade**
 
-- [ ] Tela de perfil (editar, desativar e excluir a conta)
+- [x] Tela de perfil (editar, desativar e excluir a conta)
 - [ ] Migrations com Alembic
 - [ ] Paginação e busca no servidor
 - [ ] `criado_em` / `atualizado_em` nas tabelas (auditoria)
