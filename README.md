@@ -404,12 +404,8 @@ Em ordem de prioridade:
 
 - [ ] Tela de perfil (editar, desativar e excluir a conta)
 - [ ] Migrations com Alembic
-- [ ] `.env.example` para facilitar o setup
-- [ ] Suíte de testes de frontend versionada
 - [ ] Paginação e busca no servidor
 - [ ] `criado_em` / `atualizado_em` nas tabelas (auditoria)
-- [ ] Tratamento global de exceções e logging
-- [ ] Prefixo de versão `/v1`
 
 **Produção**
 
