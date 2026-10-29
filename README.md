@@ -464,12 +464,8 @@ Itens conhecidos, em ordem de prioridade:
 
 - [ ] Tela de perfil no frontend (editar, desativar e excluir a conta)
 - [ ] Migrations com Alembic
-- [ ] `.env.example` para facilitar o setup de quem clona o projeto
-- [ ] Suíte de testes de frontend versionada
 - [ ] Paginação e busca no servidor quando a lista crescer
 - [ ] `criado_em` / `atualizado_em` nas tabelas (auditoria)
-- [ ] Tratamento global de exceções e logging
-- [ ] Prefixo de versão `/v1`
 
 **Produção**
 
