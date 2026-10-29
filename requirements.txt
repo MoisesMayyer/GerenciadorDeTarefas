@@ -18,3 +18,5 @@ pwdlib[argon2]==0.3.1
 
 # Formulários (OAuth2PasswordRequestForm)
 python-multipart==0.0.32
+
+starlette
