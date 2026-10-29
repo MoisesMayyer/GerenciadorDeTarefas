@@ -12,7 +12,11 @@ rota_tarefas = APIRouter(prefix="/tarefas", tags=["Tarefas"])
 def pegar_tarefas(
     db: Session = Depends(get_db), usuario: Usuario = Depends(verificar_token)
 ):
-    return db.query(Tarefa).filter(Tarefa.usuario_id == usuario.id).all()
+    return (
+        db.query(Tarefa)
+        .filter(Tarefa.usuario_id == usuario.id, Tarefa.deletado.is_(False))
+        .all()
+    )
 
 
 @rota_tarefas.get("/tarefa/{id}", response_model=TarefaResponse)
@@ -21,7 +25,11 @@ def pegar_tarefa_id(
 ):
     tarefa_existe = (
         db.query(Tarefa)
-        .filter(Tarefa.id == id, Tarefa.usuario_id == usuario.id)
+        .filter(
+            Tarefa.id == id,
+            Tarefa.usuario_id == usuario.id,
+            Tarefa.deletado.is_(False),
+        )
         .first()
     )
 
@@ -60,7 +68,11 @@ def atualizar_tarefa(
 ):
     tarefa_existe = (
         db.query(Tarefa)
-        .filter(Tarefa.id == id, Tarefa.usuario_id == usuario.id)
+        .filter(
+            Tarefa.id == id,
+            Tarefa.usuario_id == usuario.id,
+            Tarefa.deletado.is_(False),
+        )
         .first()
     )
 
@@ -82,7 +94,11 @@ def cancelar_tarefa(
 ):
     tarefa_existe = (
         db.query(Tarefa)
-        .filter(Tarefa.id == id, Tarefa.usuario_id == usuario.id)
+        .filter(
+            Tarefa.id == id,
+            Tarefa.usuario_id == usuario.id,
+            Tarefa.deletado.is_(False),
+        )
         .first()
     )
 
@@ -102,12 +118,17 @@ def deletar_tarefa(
 ):
     tarefa_existe = (
         db.query(Tarefa)
-        .filter(Tarefa.id == id, Tarefa.usuario_id == usuario.id)
+        .filter(
+            Tarefa.id == id,
+            Tarefa.usuario_id == usuario.id,
+            Tarefa.deletado.is_(False),
+        )
         .first()
     )
 
     if not tarefa_existe:
         raise HTTPException(status_code=404, detail="tarefa nao encontrada")
 
-    db.delete(tarefa_existe)
+    tarefa_existe.deletado = True
+
     db.commit()

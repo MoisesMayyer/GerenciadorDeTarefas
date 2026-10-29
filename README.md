@@ -398,7 +398,7 @@ Em ordem de prioridade:
 - [x] **Migrar de SQLite para PostgreSQL** (persistência entre deploys)
 - [ ] Suíte de testes com `pytest` + `TestClient` (auth, isolamento, CRUD e validação)
 - [x] Deploy da API
-- [ ] `usuario_id` `NOT NULL`, indexado e com cascade ou soft delete
+- [x] `usuario_id` `NOT NULL`, indexado e com cascade ou soft delete
 
 **Qualidade**
 

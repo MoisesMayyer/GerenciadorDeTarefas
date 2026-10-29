@@ -32,7 +32,8 @@ class Tarefa(Base):
         nullable=False,
         default=StatusTarefa.PENDENTE,
     )
-    usuario_id = Column("usuario_id", Integer, ForeignKey("usuarios.id"))
+    usuario_id = Column("usuario_id", Integer, ForeignKey("usuarios.id"), nullable=False)
+    deletado = Column("deletado", Boolean, nullable=False, default=False)
 
     usuario = relationship("Usuario", back_populates="tarefas")
 
