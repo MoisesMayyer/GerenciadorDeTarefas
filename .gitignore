@@ -9,3 +9,6 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Guia pessoal de testes (referência local, não versionar)
+backend/tests/REFERENCIA_TESTES.md
