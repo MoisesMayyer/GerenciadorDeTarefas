@@ -32,6 +32,7 @@ os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
 os.environ["CORS_ORIGINS"] = "http://localhost:5500"
 
 from app.database.database import Base, SessionLocal, db as engine  # noqa: E402
+from app.database.models import Usuario  # noqa: E402
 from app.main import app  # noqa: E402
 
 
@@ -58,14 +59,22 @@ def db_session():
 
 
 @pytest.fixture
-def criar_usuario(client):
-    def _criar(nome="Ana", email="ana@email.com", senha="senha123", ativo= True):
+def criar_usuario(client, db_session):
+    def _criar(nome="Ana", email="ana@email.com", senha="senha123", ativo=True):
         resposta = client.post(
             "/usuarios/",
-            json={"nome": nome, "email": email, "senha": senha, "ativo": ativo},
+            json={"nome": nome, "email": email, "senha": senha},
         )
         assert resposta.status_code == 201, resposta.text
-        return resposta.json()
+        usuario = resposta.json()
+
+        if not ativo:
+            registro = db_session.get(Usuario, usuario["id"])
+            registro.ativo = False
+            db_session.commit()
+            usuario["ativo"] = False
+
+        return usuario
 
     return _criar
 

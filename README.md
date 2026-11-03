@@ -9,7 +9,7 @@ API REST **multi-usuário** para tarefas pessoais, com JWT e isolamento por usu�
 ![Pydantic](https://img.shields.io/badge/Pydantic-2.14-E92063)
 ![PyJWT](https://img.shields.io/badge/PyJWT-2.15-000000?logo=jsonwebtokens&logoColor=white)
 ![Frontend](https://img.shields.io/badge/Frontend-HTML%20%2B%20CSS%20%2B%20JS-F7DF1E?logo=javascript&logoColor=black)
-![testes](https://img.shields.io/badge/testes-automatizados%20em%20constru%C3%A7%C3%A3o-yellow)
+![testes](https://img.shields.io/badge/testes-35%20passando-brightgreen)
 
 > **Projeto de estudo e portfólio.** Começou como CRUD em FastAPI e evoluiu para sistema multi-usuário com JWT, isolamento por dono e interface própria.
 
@@ -71,7 +71,7 @@ O recorte principal é o **multi-usuário**: cada conta acessa apenas as própri
 | Frontend | HTML5, CSS3 e JS (módulos ES) |
 | Comunicação | Fetch API |
 | Deploy | Render + GitHub Pages |
-| Qualidade | TestClient (manual) e checagem de sintaxe JS |
+| Qualidade | pytest + TestClient (PostgreSQL) e checagem de sintaxe JS |
 
 ## Como rodar
 
@@ -89,21 +89,12 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 # 3. Instale as dependências
 pip install -r requirements.txt
 
-# 4. Gere uma chave para o JWT
+# 4. Copie o arquivo de ambiente e gere uma chave para o JWT
+cp backend/.env.example backend/.env
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Crie `backend/.env` (ignorado pelo Git):
-
-```env
-SECRET_KEY=<a chave gerada acima>
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-DATABASE_URL=postgresql+psycopg://usuario:senha@localhost:5432/gerenciadortarefas
-CORS_ORIGINS=https://moisesmayyer.github.io,http://localhost:5500,http://127.0.0.1:5500
-```
-
-Ajuste `DATABASE_URL` ao PostgreSQL local (driver `psycopg` 3). `CORS_ORIGINS` é uma lista separada por vírgulas (padrão: `https://moisesmayyer.github.io`); as origens locais permitem o frontend em `http://localhost:5500`.
+Cole a chave gerada em `SECRET_KEY` no `backend/.env` (ignorado pelo Git) e ajuste `DATABASE_URL` ao PostgreSQL local (driver `psycopg` 3). `CORS_ORIGINS` é uma lista separada por vírgulas (padrão: `https://moisesmayyer.github.io`); as origens locais permitem o frontend em `http://localhost:5500`.
 
 ```bash
 # 5. Suba a API (de dentro de backend/)
@@ -114,6 +105,24 @@ uvicorn app.main:app --reload --port 8000
 > Rode o Uvicorn de dentro de `backend/` (módulo `app.main`). As tabelas são criadas com `create_all`. Documentação local: **http://localhost:8000/docs**.
 
 Para **resetar**, execute `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` no PostgreSQL.
+
+### Testes
+
+A suíte usa **PostgreSQL real** e cria/recria as tabelas a cada teste. Crie o banco de teste uma vez:
+
+```bash
+psql -U postgres -c "CREATE DATABASE test_gerenciador_tarefas;"
+```
+
+Instale as dependências de desenvolvimento e rode:
+
+```bash
+pip install -r requirements-dev.txt
+cd backend
+pytest
+```
+
+O `conftest.py` deriva `test_gerenciador_tarefas` a partir de `DATABASE_URL` e aceita `TEST_DATABASE_URL` para sobrescrever. Por segurança, a suíte só roda se o nome do banco começar com `test_`.
 
 ## Deploy
 
@@ -313,8 +322,17 @@ usuarios (1) ──< tarefas
 | `tarefas` | `id`, `nome`, `descricao`, `status`, `usuario_id` |
 
 - Relacionamento **1:N**; `status` usa `CHECK` com os três valores (`native_enum=False`).
-- `usuario_id` é FK anulável e não indexada para `usuarios.id`; endurecer o schema está no roadmap.
-- Exclusão de usuário remove as tarefas em cascata pelo ORM (`cascade="all, delete-orphan"`). O schema usa `create_all`; a migração para Alembic deve tornar `usuario_id` `NOT NULL` e indexado.
+- `usuario_id` é `NOT NULL`, indexado (`ix_tarefas_usuario_id`) e referencia `usuarios.id` com `ON DELETE CASCADE`.
+- Exclusão de usuário remove as tarefas em cascata pelo ORM (`cascade="all, delete-orphan"`) e também pelo banco (`ON DELETE CASCADE`), como defesa em profundidade.
+- Como o schema usa `create_all`, um banco já existente não recebe índice nem constraint novos automaticamente; recrie o schema ou aplique a alteração manualmente até o Alembic entrar:
+
+```sql
+CREATE INDEX IF NOT EXISTS ix_tarefas_usuario_id ON tarefas (usuario_id);
+
+ALTER TABLE tarefas DROP CONSTRAINT IF EXISTS tarefas_usuario_id_fkey;
+ALTER TABLE tarefas ADD CONSTRAINT tarefas_usuario_id_fkey
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE;
+```
 
 ## Estrutura do projeto
 
@@ -329,13 +347,19 @@ GerenciadorDeTarefas/
 │   │   ├── depends.py       # get_db e verificação do JWT
 │   │   ├── security.py      # hash Argon2 e token
 │   │   └── main.py          # app, CORS e routers
-│   └── .env                 # segredos (ignorado pelo Git)
+│   ├── .env                 # segredos (ignorado pelo Git)
+│   ├── .env.example         # modelo de configuração
+│   ├── pytest.ini
+│   └── tests/
+│       ├── conftest.py
+│       └── routes/          # test_auth, test_sistema, test_tarefas e test_usuarios
 ├── docs/                    # frontend (GitHub Pages)
 │   ├── css/style.css
 │   ├── js/                  # api, auth, main, task-model, tasks, theme e ui
 │   └── index.html
 ├── README.md
 ├── requirements.txt
+├── requirements-dev.txt
 └── .gitignore
 ```
 
@@ -370,6 +394,8 @@ A API padrão é `https://gerenciadordetarefas-eesn.onrender.com`. Como o Render
 
 **`model_dump(exclude_unset=True, exclude_none=True)` no `PUT`.** A atualização aplica apenas campos presentes e não nulos, evitando sobrescrever dados com `null`.
 
+**Cascade no ORM e no banco.** O ORM remove as tarefas com `cascade="all, delete-orphan"`; a FK também usa `ON DELETE CASCADE` como defesa para exclusões que não passem pelo ORM.
+
 **`create_all` em vez de Alembic.** Decisão de escopo: o banco pode ser recriado; em produção, a evolução deve usar migrations versionadas.
 
 **Busca local no frontend.** O backend não oferece busca ou paginação; a interface filtra em memória. Com volume maior, isso deve migrar para a API.
@@ -380,15 +406,19 @@ A API padrão é `https://gerenciadordetarefas-eesn.onrender.com`. Como o Render
 
 ## Qualidade
 
-Não há suíte versionada. Validações manuais com `TestClient` e SQLite em memória cobriram `401` para token ausente/inválido, listagem vazia, criação com `usuario_id` do token, CRUD pelo dono e `404` para tarefa de outro usuário. O frontend foi validado manualmente em navegador headless (20 cenários) e em layouts de 1440×900 a 360×1600.
+A suíte automatizada tem **35 testes passando** com `pytest` + `TestClient` sobre PostgreSQL:
 
-Verificação de sintaxe dos módulos:
+- autenticação: login válido, senha/e-mail inválidos, usuário inativo e todos os casos de `/auth/me` (token inválido, expirado, sem `sub`, `sub` não numérico e usuário inativo);
+- usuários: criação, validação, e-mail duplicado, e-mail em minúsculas, isolamento por dono, atualização parcial, troca de senha, cancelamento, exclusão e cascade das tarefas pelo ORM e pelo banco;
+- sistema: verificação da rota raiz.
+
+O banco de teste é isolado: o `conftest.py` deriva `test_gerenciador_tarefas`, exige o prefixo `test_` e recria as tabelas a cada teste. Ainda faltam os testes da rota de tarefas — o roteiro está em `backend/tests/routes/test_tarefas.py`.
+
+O frontend foi validado manualmente em navegador headless (20 cenários) e em layouts de 1440×900 a 360×1600. Verificação de sintaxe dos módulos:
 
 ```bash
 node --experimental-default-type=module --check docs/js/*.js
 ```
-
-> **Testes automatizados:** a suíte com `pytest` é o próximo item do roadmap; as verificações acima foram manuais e não commitadas.
 
 ## O que falta
 
@@ -397,13 +427,16 @@ Em ordem de prioridade:
 **Essencial**
 
 - [x] **Migrar de SQLite para PostgreSQL** (persistência entre deploys)
-- [ ] Suíte de testes com `pytest` + `TestClient` (auth, isolamento, CRUD e validação)
+- [x] Suíte de testes de auth e usuários com `pytest` + `TestClient`
+- [ ] Testes da rota de tarefas (roteiro em `backend/tests/routes/test_tarefas.py`)
 - [x] Deploy da API
-- [x] `usuario_id` `NOT NULL`, indexado e com cascade ou soft delete
+- [x] `usuario_id` `NOT NULL`
+- [x] Índice em `usuario_id` e `ON DELETE CASCADE` no banco
 
 **Qualidade**
 
 - [x] Tela de perfil (editar, desativar e excluir a conta)
+- [x] `backend/.env.example` documentado
 - [ ] Migrations com Alembic
 - [ ] Paginação e busca no servidor
 - [ ] `criado_em` / `atualizado_em` nas tabelas (auditoria)
@@ -419,4 +452,4 @@ Em ordem de prioridade:
 
 ## Status do projeto
 
-Em desenvolvimento, com deploy ativo: API no Render, frontend no GitHub Pages e CRUD com JWT sobre PostgreSQL. Próximos passos: testes, Alembic e melhorias de produção.
+Em desenvolvimento, com deploy ativo: API no Render, frontend no GitHub Pages e CRUD com JWT sobre PostgreSQL. Auth e usuários cobertos por 35 testes; os testes de tarefas, Alembic e as melhorias de produção (CI, rate limiting e revogação de token) são os próximos passos.

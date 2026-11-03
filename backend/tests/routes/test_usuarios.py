@@ -32,8 +32,9 @@ DELETE /usuarios/{id}
 """
 
 import pytest
+from sqlalchemy import delete
 
-from app.database.models import Tarefa
+from app.database.models import Tarefa, Usuario
 
 #post - test
 def test_criar_usuario(client):
@@ -292,6 +293,27 @@ def test_deletar_usuario_remove_tarefas(client, usuario, headers, db_session):
     )
     assert resposta.status_code == 204, resposta.text
 
+    total = db_session.query(Tarefa).filter(
+        Tarefa.usuario_id == usuario["id"]
+    ).count()
+
+    assert total == 0
+
+
+def test_cascade_do_banco_remove_tarefas(client, usuario, headers, db_session):
+    # Cria uma tarefa para a Ana.
+    resposta = client.post(
+        "/tarefas/nova_tarefa",
+        headers=headers,
+        json={"nome": "Tarefa da Ana", "descricao": ""}
+    )
+    assert resposta.status_code == 201, resposta.text
+
+    # Exclui o usuário direto no banco, sem passar pelo ORM.
+    db_session.execute(delete(Usuario).where(Usuario.id == usuario["id"]))
+    db_session.commit()
+
+    # O ON DELETE CASCADE do banco deve ter removido a tarefa.
     total = db_session.query(Tarefa).filter(
         Tarefa.usuario_id == usuario["id"]
     ).count()
