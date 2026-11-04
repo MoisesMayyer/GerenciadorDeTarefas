@@ -9,7 +9,7 @@ API REST **multi-usuário** para tarefas pessoais, com JWT e isolamento por usu�
 ![Pydantic](https://img.shields.io/badge/Pydantic-2.14-E92063)
 ![PyJWT](https://img.shields.io/badge/PyJWT-2.15-000000?logo=jsonwebtokens&logoColor=white)
 ![Frontend](https://img.shields.io/badge/Frontend-HTML%20%2B%20CSS%20%2B%20JS-F7DF1E?logo=javascript&logoColor=black)
-![testes](https://img.shields.io/badge/testes-35%20passando-brightgreen)
+![testes](https://img.shields.io/badge/testes-57%20passando-brightgreen)
 
 > **Projeto de estudo e portfólio.** Começou como CRUD em FastAPI e evoluiu para sistema multi-usuário com JWT, isolamento por dono e interface própria.
 
@@ -406,13 +406,14 @@ A API padrão é `https://gerenciadordetarefas-eesn.onrender.com`. Como o Render
 
 ## Qualidade
 
-A suíte automatizada tem **35 testes passando** com `pytest` + `TestClient` sobre PostgreSQL:
+A suíte automatizada tem **57 testes passando** com `pytest` + `TestClient` sobre PostgreSQL:
 
 - autenticação: login válido, senha/e-mail inválidos, usuário inativo e todos os casos de `/auth/me` (token inválido, expirado, sem `sub`, `sub` não numérico e usuário inativo);
 - usuários: criação, validação, e-mail duplicado, e-mail em minúsculas, isolamento por dono, atualização parcial, troca de senha, cancelamento, exclusão e cascade das tarefas pelo ORM e pelo banco;
+- tarefas: criação com status padrão e validações, listagem e busca por id com isolamento por dono, atualização parcial (incluindo campos nulos), cancelamento, soft delete com preservação da linha e bloqueio de acesso após exclusão;
 - sistema: verificação da rota raiz.
 
-O banco de teste é isolado: o `conftest.py` deriva `test_gerenciador_tarefas`, exige o prefixo `test_` e recria as tabelas a cada teste. Ainda faltam os testes da rota de tarefas — o roteiro está em `backend/tests/routes/test_tarefas.py`.
+O banco de teste é isolado: o `conftest.py` deriva `test_gerenciador_tarefas`, exige o prefixo `test_` e recria as tabelas a cada teste.
 
 O frontend foi validado manualmente em navegador headless (20 cenários) e em layouts de 1440×900 a 360×1600. Verificação de sintaxe dos módulos:
 
@@ -428,7 +429,7 @@ Em ordem de prioridade:
 
 - [x] **Migrar de SQLite para PostgreSQL** (persistência entre deploys)
 - [x] Suíte de testes de auth e usuários com `pytest` + `TestClient`
-- [ ] Testes da rota de tarefas (roteiro em `backend/tests/routes/test_tarefas.py`)
+- [x] Testes da rota de tarefas (criação, listagem, atualização, cancelamento e soft delete)
 - [x] Deploy da API
 - [x] `usuario_id` `NOT NULL`
 - [x] Índice em `usuario_id` e `ON DELETE CASCADE` no banco
@@ -452,4 +453,4 @@ Em ordem de prioridade:
 
 ## Status do projeto
 
-Em desenvolvimento, com deploy ativo: API no Render, frontend no GitHub Pages e CRUD com JWT sobre PostgreSQL. Auth e usuários cobertos por 35 testes; os testes de tarefas, Alembic e as melhorias de produção (CI, rate limiting e revogação de token) são os próximos passos.
+Em desenvolvimento, com deploy ativo: API no Render, frontend no GitHub Pages e CRUD com JWT sobre PostgreSQL. Auth, usuários e tarefas cobertos por 57 testes; Alembic e as melhorias de produção (CI, rate limiting e revogação de token) são os próximos passos.
