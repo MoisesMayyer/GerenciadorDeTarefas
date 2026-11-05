@@ -43,7 +43,7 @@ O sistema permite criar, concluir, cancelar e excluir tarefas pessoais, com nome
 
 O recorte principal é o **multi-usuário**: cada conta acessa apenas as próprias tarefas. Toda consulta filtra pelo `usuario_id` do token, nunca pelo corpo; registros de outra conta respondem **404**. O frontend em `docs/` consome a API atual — sem prioridade, vencimento, etiquetas, busca no servidor ou paginação; busca e filtros são locais.
 
-> **Banco:** PostgreSQL via `psycopg`; schema criado com `create_all` e migrações com Alembic planejadas.
+> **Banco:** PostgreSQL via `psycopg`; schema versionado com **Alembic** (`alembic upgrade head`).
 
 ## Funcionalidades
 
@@ -65,6 +65,7 @@ O recorte principal é o **multi-usuário**: cada conta acessa apenas as própri
 | ORM | SQLAlchemy 2.1 |
 | Validação/serialização | Pydantic 2.14 + pydantic-settings |
 | Banco | PostgreSQL (psycopg) |
+| Migrações | Alembic 1.20 |
 | Servidor | Uvicorn |
 | Hash de senha | pwdlib (Argon2) |
 | Token | PyJWT (HS256) |
@@ -97,14 +98,31 @@ python -c "import secrets; print(secrets.token_hex(32))"
 Cole a chave gerada em `SECRET_KEY` no `backend/.env` (ignorado pelo Git) e ajuste `DATABASE_URL` ao PostgreSQL local (driver `psycopg` 3). `CORS_ORIGINS` é uma lista separada por vírgulas (padrão: `https://moisesmayyer.github.io`); as origens locais permitem o frontend em `http://localhost:5500`.
 
 ```bash
-# 5. Suba a API (de dentro de backend/)
+# 5. Aplique as migrations (da raiz do projeto)
+alembic upgrade head
+
+# 6. Suba a API (de dentro de backend/)
 cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
-> Rode o Uvicorn de dentro de `backend/` (módulo `app.main`). As tabelas são criadas com `create_all`. Documentação local: **http://localhost:8000/docs**.
+> Rode o Alembic da **raiz** (onde está o `alembic.ini`) e o Uvicorn de dentro de `backend/` (módulo `app.main`). O schema é criado pelas migrations, não por `create_all`. Documentação local: **http://localhost:8000/docs**.
 
-Para **resetar**, execute `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` no PostgreSQL.
+Para **resetar**, execute `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` no PostgreSQL e rode `alembic upgrade head` novamente.
+
+### Migrações (Alembic)
+
+As migrations ficam em `alembic/versions/` e leem o `DATABASE_URL` de `backend/.env`. Rode os comandos da **raiz do projeto**:
+
+```bash
+alembic upgrade head                              # aplica as migrations pendentes
+alembic current                                   # revisão aplicada no banco
+alembic history                                   # histórico de revisões
+alembic revision --autogenerate -m "descricao"    # cria uma revisão a partir dos models
+alembic downgrade -1                              # desfaz a última revisão
+```
+
+Ao alterar os models em `backend/app/database/models.py`, gere a revisão com `--autogenerate`, confira o arquivo criado em `alembic/versions/` e aplique com `alembic upgrade head`. A revisão inicial (`b18754318baa`) cria as tabelas `usuarios` e `tarefas`, o índice único de e-mail, o índice de `usuario_id` e a FK com `ON DELETE CASCADE`.
 
 ### Testes
 
@@ -130,10 +148,12 @@ API no Render e frontend no GitHub Pages.
 
 ### API (Render)
 
-- **Root directory:** `backend`
-- **Build command:** `pip install -r ../requirements.txt`
-- **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **Root directory:** raiz do repositório (vazio). O `alembic.ini` e a pasta `alembic/` ficam aqui.
+- **Build command:** `pip install -r requirements.txt`
+- **Start command:** `alembic upgrade head && PYTHONPATH=backend uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - **Variáveis:** `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `DATABASE_URL` e, se necessário, `CORS_ORIGINS`.
+
+O start roda `alembic upgrade head` **antes** do Uvicorn: cada deploy aplica as migrations pendentes e só então inicia a API. O Alembic roda da raiz (onde está o `alembic.ini`) e `PYTHONPATH=backend` deixa o pacote `app` importável sem precisar de `cd`. Por isso a Root Directory precisa ser a raiz do repositório.
 
 Configure as chaves do `backend/.env` em **Environment** no Render.
 
@@ -155,7 +175,7 @@ Para o frontend local, adicione `http://localhost:5500` e `http://127.0.0.1:5500
 
 ### Banco de dados
 
-PostgreSQL via `DATABASE_URL`; no Render, use um banco gerenciado (Render, Neon ou Supabase) para persistir entre deploys. Driver `psycopg` 3; Alembic planejado.
+PostgreSQL via `DATABASE_URL`; no Render, use um banco gerenciado (Render, Neon ou Supabase) para persistir entre deploys. Driver `psycopg` 3; migrations versionadas com **Alembic**, aplicadas no start do deploy com `alembic upgrade head`.
 
 ## Como usar
 
@@ -324,20 +344,21 @@ usuarios (1) ──< tarefas
 - Relacionamento **1:N**; `status` usa `CHECK` com os três valores (`native_enum=False`).
 - `usuario_id` é `NOT NULL`, indexado (`ix_tarefas_usuario_id`) e referencia `usuarios.id` com `ON DELETE CASCADE`.
 - Exclusão de usuário remove as tarefas em cascata pelo ORM (`cascade="all, delete-orphan"`) e também pelo banco (`ON DELETE CASCADE`), como defesa em profundidade.
-- Como o schema usa `create_all`, um banco já existente não recebe índice nem constraint novos automaticamente; recrie o schema ou aplique a alteração manualmente até o Alembic entrar:
+- Como o schema é versionado com Alembic, um banco já existente recebe índice, constraint ou coluna novos com uma revisão aplicada por `alembic upgrade head`. A migration inicial já inclui o índice `ix_tarefas_usuario_id`, o índice único de e-mail e a FK com `ON DELETE CASCADE`:
 
-```sql
-CREATE INDEX IF NOT EXISTS ix_tarefas_usuario_id ON tarefas (usuario_id);
-
-ALTER TABLE tarefas DROP CONSTRAINT IF EXISTS tarefas_usuario_id_fkey;
-ALTER TABLE tarefas ADD CONSTRAINT tarefas_usuario_id_fkey
-  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE;
+```bash
+alembic upgrade head
 ```
 
 ## Estrutura do projeto
 
 ```
 GerenciadorDeTarefas/
+├── alembic/
+│   ├── env.py               # configura engine e target_metadata
+│   ├── script.py.mako
+│   └── versions/            # revisões de schema
+├── alembic.ini
 ├── backend/
 │   ├── app/
 │   │   ├── database/        # database.py (engine/sessão/Base) e models.py
@@ -396,7 +417,7 @@ A API padrão é `https://gerenciadordetarefas-eesn.onrender.com`. Como o Render
 
 **Cascade no ORM e no banco.** O ORM remove as tarefas com `cascade="all, delete-orphan"`; a FK também usa `ON DELETE CASCADE` como defesa para exclusões que não passem pelo ORM.
 
-**`create_all` em vez de Alembic.** Decisão de escopo: o banco pode ser recriado; em produção, a evolução deve usar migrations versionadas.
+**Alembic para versionar o schema.** O schema não é mais criado com `create_all`; as migrations ficam em `alembic/versions/` e são aplicadas com `alembic upgrade head`, inclusive no start do deploy. Isso permite evoluir o banco de produção sem perder dados. Nos testes, o `conftest.py` ainda recria as tabelas diretamente para garantir isolamento.
 
 **Busca local no frontend.** O backend não oferece busca ou paginação; a interface filtra em memória. Com volume maior, isso deve migrar para a API.
 
@@ -438,7 +459,7 @@ Em ordem de prioridade:
 
 - [x] Tela de perfil (editar, desativar e excluir a conta)
 - [x] `backend/.env.example` documentado
-- [ ] Migrations com Alembic
+- [x] Migrations com Alembic
 - [ ] Paginação e busca no servidor
 - [ ] `criado_em` / `atualizado_em` nas tabelas (auditoria)
 
@@ -453,4 +474,4 @@ Em ordem de prioridade:
 
 ## Status do projeto
 
-Em desenvolvimento, com deploy ativo: API no Render, frontend no GitHub Pages e CRUD com JWT sobre PostgreSQL. Auth, usuários e tarefas cobertos por 57 testes; Alembic e as melhorias de produção (CI, rate limiting e revogação de token) são os próximos passos.
+Em desenvolvimento, com deploy ativo: API no Render, frontend no GitHub Pages e CRUD com JWT sobre PostgreSQL. Auth, usuários e tarefas cobertos por 57 testes; o schema é versionado com Alembic, e as melhorias de produção (CI, rate limiting e revogação de token) são os próximos passos.
