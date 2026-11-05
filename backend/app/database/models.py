@@ -3,7 +3,7 @@ from enum import StrEnum
 from sqlalchemy import Column, Enum as SAEnum, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 
-from app.database.database import Base
+from backend.app.database.database import Base
 
 
 class StatusTarefa(StrEnum):
