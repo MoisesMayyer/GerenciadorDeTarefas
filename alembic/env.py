@@ -9,7 +9,7 @@ config = context.config
 
 from backend.app.database.models import Tarefa, Usuario
 
-from backend.app.config import settings
+from app.config import settings
 
 
 config.set_main_option(
