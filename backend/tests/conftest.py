@@ -9,12 +9,14 @@ from sqlalchemy.engine import make_url
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 _env = dotenv_values(BACKEND_DIR / ".env")
 
-if not _env.get("DATABASE_URL"):
-    raise RuntimeError("Defina DATABASE_URL em backend/.env")
+DATABASE_URL = os.getenv("DATABASE_URL") or _env.get("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError("Defina DATABASE_URL no ambiente ou em backend/.env")
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL") or make_url(
-    _env["DATABASE_URL"]
+    DATABASE_URL
 ).set(database="test_gerenciador_tarefas").render_as_string(hide_password=False)
 
 _banco = make_url(TEST_DATABASE_URL).database or ""
