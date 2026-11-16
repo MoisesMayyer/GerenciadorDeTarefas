@@ -7,7 +7,7 @@ POST /tarefas/nova_tarefa
 
 GET /tarefas/
   - 200 listando só as tarefas do dono.
-  - 200 com lista vazia para usuário sem tarefas.
+  - 200 com itens vazios para usuário sem tarefas.
   - Tarefas com deletado=True NÃO aparecem.
 
 GET /tarefas/tarefa/{id}
@@ -99,12 +99,13 @@ def test_listar_tarefa_dono(client,usuario,headers):
 
     corpo = resposta.json()
 
-    assert len(corpo) == 1
+    assert len(corpo["items"]) == 1
 
-    assert corpo[0]["id"] == tarefa["id"]
-    assert corpo[0]["nome"] == "teste"
-    assert corpo[0]["descricao"] == "teste"
-    assert corpo[0]["status"] == "pendente"
+    assert corpo["items"][0]["id"] == tarefa["id"]
+    assert corpo["items"][0]["nome"] == "teste"
+    assert corpo["items"][0]["descricao"] == "teste"
+    assert corpo["items"][0]["status"] == "pendente"
+    assert corpo["total"] == 1
 
 
 def test_listar_tarefas_vazias(client, headers):
@@ -113,7 +114,8 @@ def test_listar_tarefas_vazias(client, headers):
         headers=headers
     )
     assert resposta.status_code == 200, resposta.text
-    assert resposta.json() == []
+    assert resposta.json()["items"] == []
+    assert resposta.json()["total"] == 0
 
 
 def test_tarefa_deletada(client,headers):
@@ -135,7 +137,8 @@ def test_tarefa_deletada(client,headers):
         "/tarefas/",
         headers=headers
     )
-    assert resposta.json() == []
+    assert resposta.json()["items"] == []
+    assert resposta.json()["total"] == 0
 
 
 #get{id} - test
@@ -211,7 +214,8 @@ def test_listar_tarefa_outro_usuario(client, headers, criar_usuario, autenticar)
     resposta = client.get("/tarefas/", headers=headers_jose)
 
     assert resposta.status_code == 200, resposta.text
-    assert resposta.json() == []
+    assert resposta.json()["items"] == []
+    assert resposta.json()["total"] == 0
 
     resposta = client.get(f"/tarefas/tarefa/{tarefa_id}", headers=headers_jose)
     assert resposta.status_code == 404, resposta.text
