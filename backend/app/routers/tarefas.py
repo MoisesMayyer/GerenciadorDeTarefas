@@ -1,21 +1,41 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.depends import get_db, verificar_token
 from app.database.models import StatusTarefa, Tarefa, Usuario
-from app.schemas.tarefas import TarefaResponse, TarefaCreate, TarefaUpdate
+from app.schemas.tarefas import TarefaResponse, TarefaCreate, TarefaUpdate, TarefaListResponse
 
 rota_tarefas = APIRouter(prefix="/tarefas", tags=["Tarefas"])
 
 
-@rota_tarefas.get("/", response_model=list[TarefaResponse])
+@rota_tarefas.get("/", response_model=TarefaListResponse)
 def pegar_tarefas(
-    db: Session = Depends(get_db), usuario: Usuario = Depends(verificar_token)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(verificar_token),
+    skip: int = Query(0,ge=0),
+    limit:int = Query(10, ge=1, le=100),
+    busca: Optional[str] = Query(None),
 ):
-    return (
-        db.query(Tarefa)
-        .filter(Tarefa.usuario_id == usuario.id, Tarefa.deletado.is_(False))
+    query = db.query(Tarefa).filter(Tarefa.usuario_id == usuario.id, Tarefa.deletado.is_(False))
+
+    if busca:
+        query = query.filter(Tarefa.descricao.ilike(f"%{busca}%"))
+
+    total = query.count()
+
+    tarefas = (
+        query.order_by(Tarefa.id.desc())
+        .offset(skip)
+        .limit(limit)
         .all()
+    )
+
+    return TarefaListResponse(
+        items =[TarefaResponse.model_validate(t) for t in tarefas],
+        skip=skip,
+        total = total,
+        limit = limit,
     )
 
 

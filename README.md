@@ -460,7 +460,7 @@ Em ordem de prioridade:
 - [x] Tela de perfil (editar, desativar e excluir a conta)
 - [x] `backend/.env.example` documentado
 - [x] Migrations com Alembic
-- [ ] Paginação e busca no servidor
+- [X] Paginação na rota GET /TAREFAS/
 - [ ] `criado_em` / `atualizado_em` nas tabelas (auditoria)
 
 **Produção**

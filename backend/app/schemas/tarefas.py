@@ -37,3 +37,9 @@ class TarefaResponse(BaseModel):
     nome: str
     descricao: str
     status: StatusTarefa
+
+class TarefaListResponse(BaseModel):
+    items: list[TarefaResponse]
+    skip: int
+    limit: int
+    total: int
