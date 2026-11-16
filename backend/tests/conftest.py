@@ -27,7 +27,7 @@ if not _banco.startswith("test_"):
 
 
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-os.environ.pop("TEST_DATABASE_URL", None)
+os.environ["TEST_DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["SECRET_KEY"] = "chave-secreta-apenas-para-testes"
 os.environ["ALGORITHM"] = "HS256"
 os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
