@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     DATABASE_URL: str
-    TEST_DATABASE_URL: str
+    TEST_DATABASE_URL: str | None = None
 
     # Origens autorizadas a chamar a API (separadas por vírgula).
     # O padrão é apenas o frontend publicado no GitHub Pages.
