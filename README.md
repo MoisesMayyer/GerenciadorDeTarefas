@@ -468,8 +468,7 @@ Em ordem de prioridade:
 - [x] CORS restrito ao domínio do frontend
 - [ ] Rate limiting no login
 - [ ] Refresh token e revogação de access token
-- [ ] CI no GitHub Actions com testes e checagem de sintaxe
-- [ ] Dockerfile e docker-compose
+- [X] CI no GitHub Actions com testes e checagem de sintaxe
 - [x] Deploy com link público
 
 ## Status do projeto
