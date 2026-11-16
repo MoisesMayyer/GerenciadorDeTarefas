@@ -31,7 +31,7 @@ os.environ["ALGORITHM"] = "HS256"
 os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
 os.environ["CORS_ORIGINS"] = "http://localhost:5500"
 
-from backend.app.database.database import Base, SessionLocal, db as engine  # noqa: E402
+from app.database.database import Base, SessionLocal, db as engine  # noqa: E402
 from app.database.models import Usuario  # noqa: E402
 from app.main import app  # noqa: E402
 

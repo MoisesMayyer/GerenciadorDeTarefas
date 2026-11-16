@@ -3,8 +3,8 @@ from enum import StrEnum
 from sqlalchemy import Column, Enum as SAEnum, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 
-from backend.app.database.database import Base
-from backend.app.database.mixins import TimestampMixin
+from app.database.database import Base
+from app.database.mixins import TimestampMixin
 
 class StatusTarefa(StrEnum):
 
