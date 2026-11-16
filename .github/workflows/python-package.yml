@@ -43,7 +43,7 @@ jobs:
 
       - name: Criar arquivo .env para testes
         run: |
-          echo "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/test_db" > .env
+          echo "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/test_db" > backend/.env
 
       - name: Instalar dependências
         run: |
