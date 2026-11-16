@@ -461,7 +461,7 @@ Em ordem de prioridade:
 - [x] `backend/.env.example` documentado
 - [x] Migrations com Alembic
 - [X] Paginação na rota GET /TAREFAS/
-- [ ] `criado_em` / `atualizado_em` nas tabelas (auditoria)
+- [X] `criado_em` / `atualizado_em` nas tabelas (auditoria)
 
 **Produção**
 

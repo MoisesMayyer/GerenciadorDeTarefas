@@ -4,7 +4,7 @@ from sqlalchemy import Column, Enum as SAEnum, Integer, String, Boolean, Foreign
 from sqlalchemy.orm import relationship
 
 from backend.app.database.database import Base
-
+from backend.app.database.mixins import TimestampMixin
 
 class StatusTarefa(StrEnum):
 
@@ -14,7 +14,7 @@ class StatusTarefa(StrEnum):
     CANCELADO = "cancelado"
 
 
-class Tarefa(Base):
+class Tarefa(Base, TimestampMixin):
     __tablename__ = "tarefas"
 
     id = Column("id", Integer, primary_key=True, autoincrement=True, nullable=False)
@@ -38,7 +38,7 @@ class Tarefa(Base):
     usuario = relationship("Usuario", back_populates="tarefas")
 
 
-class Usuario(Base):
+class Usuario(Base, TimestampMixin):
     __tablename__ = "usuarios"
 
     id = Column("id", Integer, primary_key=True, autoincrement=True, nullable=False)
