@@ -249,7 +249,7 @@ As rotas protegidas pedem `Authorization: Bearer <token>`. "Dono" significa que 
 
 > [!CAUTION]
 > A exclusão da conta é definitiva e remove todas as tarefas e sessões. A API não oferece recuperação nem lixeira.
-|
+
 > [!WARNING]
 > O limite padrão do projeto é **5 requisições por minuto por IP**, configurado em `backend/app/limiter.py`.
 
