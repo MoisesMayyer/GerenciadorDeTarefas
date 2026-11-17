@@ -466,7 +466,7 @@ Em ordem de prioridade:
 **Produção**
 
 - [x] CORS restrito ao domínio do frontend
-- [ ] Rate limiting no login
+- [X] Rate limiting no login
 - [ ] Refresh token e revogação de access token
 - [X] CI no GitHub Actions com testes e checagem de sintaxe
 - [x] Deploy com link público

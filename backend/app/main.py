@@ -1,16 +1,21 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+
 from app.config import settings
+from app.limiter import limiter
 from app.routers.auth import router_auth
 from app.routers.tarefas import rota_tarefas
 from app.routers.usuarios import router_usuarios
 
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
-# A API só aceita chamadas do frontend publicado no GitHub Pages.
-# Para rodar o frontend localmente, adicione as origens locais em CORS_ORIGINS
-# no backend/.env (ex.: http://localhost:5500).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -24,5 +29,6 @@ app.include_router(router_auth)
 app.include_router(router_usuarios)
 
 @app.get("/")
-async def root():
+@limiter.limit("5/minutes")
+async def root(request: Request):
     return {"message": "teste"}

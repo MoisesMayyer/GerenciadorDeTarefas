@@ -35,8 +35,9 @@ os.environ["CORS_ORIGINS"] = "http://localhost:5500"
 
 from app.database.database import Base, SessionLocal, db as engine  # noqa: E402
 from app.database.models import Usuario  # noqa: E402
-from app.main import app  # noqa: E402
+from app.main import app, limiter  # noqa: E402
 
+limiter.enabled = False
 
 @pytest.fixture(autouse=True)
 def banco_limpo():
