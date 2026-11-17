@@ -72,8 +72,8 @@ function exibirLogin(mensagem = "") {
   login.mostrar(mensagem);
 }
 
-function sair() {
-  encerrarSessao();
+async function sair() {
+  await encerrarSessao();
   window.location.reload();
 }
 

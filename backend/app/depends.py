@@ -22,6 +22,10 @@ def verificar_token(token: str = Depends(oauth2_scheme), db: Session = Depends(g
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
+
+        if payload.get("tipo", "access") != "access":
+            raise HTTPException(status_code=401, detail="Acesso negado")
+
         usuario_id = payload.get("sub")
 
         if usuario_id is None:

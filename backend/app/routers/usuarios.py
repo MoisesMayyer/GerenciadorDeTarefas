@@ -2,12 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.database.models import Usuario
+from app.database.models import RefreshToken, Usuario
 from app.depends import get_db, verificar_token
 from app.schemas.usuarios import UsuarioCreate, UsuarioResponse, UsuarioUpdate
 from app.security import hash_senha
 
 router_usuarios = APIRouter(prefix="/usuarios", tags=["Usuários"])
+
+
+def _revogar_refresh_tokens(db: Session, usuario_id: int) -> None:
+    db.query(RefreshToken).filter(
+        RefreshToken.usuario_id == usuario_id,
+        RefreshToken.revogado.is_(False),
+    ).update({"revogado": True})
 
 
 # Sem papel de admin, cada usuario enxerga apenas a propria conta.
@@ -74,6 +81,7 @@ def atualizar_usuario(
 
     if "senha" in campos:
         usuario.senha = hash_senha(campos.pop("senha"))
+        _revogar_refresh_tokens(db, usuario.id)
 
     for campo, valor in campos.items():
         setattr(usuario, campo, valor)
@@ -97,6 +105,7 @@ def cancelar_usuario(
         raise HTTPException(status_code=404, detail="usuario nao encontrado")
 
     usuario.ativo = False
+    _revogar_refresh_tokens(db, usuario.id)
     db.commit()
     db.refresh(usuario)
 

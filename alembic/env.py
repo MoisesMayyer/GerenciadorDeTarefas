@@ -7,7 +7,7 @@ from alembic import context
 
 config = context.config
 
-from backend.app.database.models import Tarefa, Usuario
+from backend.app.database.models import RefreshToken, Tarefa, Usuario  # noqa: F401
 
 from app.config import settings
 

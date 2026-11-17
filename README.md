@@ -201,10 +201,30 @@ curl -X POST http://localhost:8000/auth/login \
 ```
 
 ```json
-{"access_token": "eyJhbGciOiJIUzI1NiIs...", "token_type": "bearer"}
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "3sF...token-opaco...",
+  "token_type": "bearer"
+}
 ```
 
-### 3. Usar o token nas rotas protegidas
+O `access_token` (JWT) dura 30 minutos. O `refresh_token` é opaco, dura 7 dias e serve para renovar o par sem pedir a senha de novo.
+
+### 3. Renovar ou revogar a sessão
+
+```bash
+# Renova o par: o refresh usado é revogado (rotação)
+curl -X POST http://localhost:8000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "cole-o-refresh-token-aqui"}'
+
+# Logout: revoga o refresh token (204, idempotente)
+curl -i -X POST http://localhost:8000/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "cole-o-refresh-token-aqui"}'
+```
+
+### 4. Usar o token nas rotas protegidas
 
 ```bash
 TOKEN="cole-o-access-token-aqui"
@@ -212,7 +232,7 @@ TOKEN="cole-o-access-token-aqui"
 
 Envie `Authorization: Bearer $TOKEN` nas rotas protegidas.
 
-### 4. Criar e listar tarefas
+### 5. Criar e listar tarefas
 
 ```bash
 curl -X POST http://localhost:8000/tarefas/nova_tarefa \
@@ -235,7 +255,7 @@ curl http://localhost:8000/tarefas/ \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### 5. Atualizar, cancelar e excluir
+### 6. Atualizar, cancelar e excluir
 
 ```bash
 # Atualização parcial: envie apenas os campos que deseja mudar
@@ -253,7 +273,7 @@ curl -i -X DELETE http://localhost:8000/tarefas/deletar_tarefa/1 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### 6. Abrir o frontend
+### 7. Abrir o frontend
 
 Localmente, em outro terminal:
 
@@ -271,7 +291,9 @@ As rotas de tarefas e as autenticadas de usuário exigem `Authorization: Bearer 
 
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| POST | `/auth/login` | público | Autentica e devolve o JWT |
+| POST | `/auth/login` | público | Autentica e devolve access + refresh token |
+| POST | `/auth/refresh` | público | Renova o par de tokens (rotaciona o refresh) |
+| POST | `/auth/logout` | público | Revoga o refresh token (`204`) |
 | GET | `/auth/me` | autenticado | Dados do usuário do token |
 
 ### Usuários
@@ -429,7 +451,7 @@ A API padrão é `https://gerenciadordetarefas-eesn.onrender.com`. Como o Render
 
 A suíte automatizada tem **57 testes passando** com `pytest` + `TestClient` sobre PostgreSQL:
 
-- autenticação: login válido, senha/e-mail inválidos, usuário inativo e todos os casos de `/auth/me` (token inválido, expirado, sem `sub`, `sub` não numérico e usuário inativo);
+- autenticação: login válido, senha/e-mail inválidos, usuário inativo, refresh válido/rotacionado/inválido, logout revogando o refresh e todos os casos de `/auth/me` (token inválido, expirado, sem `sub`, `sub` não numérico e usuário inativo);
 - usuários: criação, validação, e-mail duplicado, e-mail em minúsculas, isolamento por dono, atualização parcial, troca de senha, cancelamento, exclusão e cascade das tarefas pelo ORM e pelo banco;
 - tarefas: criação com status padrão e validações, listagem e busca por id com isolamento por dono, atualização parcial (incluindo campos nulos), cancelamento, soft delete com preservação da linha e bloqueio de acesso após exclusão;
 - sistema: verificação da rota raiz.
@@ -467,7 +489,7 @@ Em ordem de prioridade:
 
 - [x] CORS restrito ao domínio do frontend
 - [X] Rate limiting no login
-- [ ] Refresh token e revogação de access token
+- [X] Refresh token
 - [X] CI no GitHub Actions com testes e checagem de sintaxe
 - [x] Deploy com link público
 

@@ -42,6 +42,7 @@ def test_login_devolve_token(client, criar_usuario):
     corpo = resposta.json()
     assert corpo["token_type"] == "bearer"
     assert corpo["access_token"]
+    assert corpo["refresh_token"]
 
 
 def test_login_senha_invalida(client, criar_usuario):
@@ -167,4 +168,69 @@ def test_me_usuario_inativo_retorna_401(
     resposta = client.get("/auth/me", headers=headers)
 
     assert resposta.status_code == 401, resposta.text
+
+
+def _login(client, email="ana@email.com", senha="senha123"):
+    resposta = client.post(
+        "/auth/login", data={"username": email, "password": senha}
+    )
+    assert resposta.status_code == 200, resposta.text
+    return resposta.json()
+
+
+def test_refresh_rotaciona_tokens(client, usuario):
+    tokens = _login(client)
+    refresh_antigo = tokens["refresh_token"]
+
+    resposta = client.post(
+        "/auth/refresh", json={"refresh_token": refresh_antigo}
+    )
+
+    assert resposta.status_code == 200, resposta.text
+    novo = resposta.json()
+    assert novo["access_token"]
+    assert novo["refresh_token"]
+    assert novo["refresh_token"] != refresh_antigo
+
+    # O refresh usado na rotação deixa de valer.
+    reuso = client.post(
+        "/auth/refresh", json={"refresh_token": refresh_antigo}
+    )
+    assert reuso.status_code == 401, reuso.text
+
+    # O novo token continua funcionando.
+    valido = client.post(
+        "/auth/refresh", json={"refresh_token": novo["refresh_token"]}
+    )
+    assert valido.status_code == 200, valido.text
+
+
+def test_refresh_invalido_retorna_401(client):
+    resposta = client.post(
+        "/auth/refresh", json={"refresh_token": "token-inexistente"}
+    )
+
+    assert resposta.status_code == 401, resposta.text
+
+
+def test_logout_revoga_refresh_token(client, usuario):
+    tokens = _login(client)
+
+    resposta = client.post(
+        "/auth/logout", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert resposta.status_code == 204, resposta.text
+
+    reuso = client.post(
+        "/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert reuso.status_code == 401, reuso.text
+
+
+def test_logout_idempotente(client):
+    resposta = client.post(
+        "/auth/logout", json={"refresh_token": "token-inexistente"}
+    )
+
+    assert resposta.status_code == 204, resposta.text
 

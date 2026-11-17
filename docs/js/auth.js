@@ -8,7 +8,8 @@
 import {
   ApiError,
   authApi,
-  definirToken,
+  definirTokens,
+  obterRefreshToken,
   obterToken,
   removerToken,
   usuariosApi,
@@ -57,25 +58,40 @@ export function temSessao() {
   return Boolean(obterToken()) && Boolean(usuarioAtual());
 }
 
-/** Encerra a sessão local (o JWT é stateless; não há chamada ao backend). */
-export function encerrarSessao() {
+/**
+ * Encerra a sessão local e revoga o refresh token no backend.
+ *
+ * Os tokens locais são removidos imediatamente (a UI responde na hora); a
+ * chamada de logout é aguardada apenas para garantir a revogação.
+ */
+export async function encerrarSessao() {
+  const refreshToken = obterRefreshToken();
+
   removerToken();
   try {
     localStorage.removeItem(CHAVE_USUARIO);
   } catch {
     /* localStorage pode estar bloqueado */
   }
+
+  if (refreshToken) {
+    try {
+      await authApi.logout(refreshToken);
+    } catch {
+      /* sem rede: o token expira sozinho e o cliente já o descartou */
+    }
+  }
 }
 
-/** Autentica, salva o token e devolve o usuário vindo de /auth/me. */
+/** Autentica, salva o par de tokens e devolve o usuário vindo de /auth/me. */
 async function entrar(email, senha) {
-  const { access_token } = await authApi.login(email, senha);
+  const { access_token, refresh_token } = await authApi.login(email, senha);
 
-  if (!access_token) {
-    throw new ApiError("A API não devolveu um token de acesso.");
+  if (!access_token || !refresh_token) {
+    throw new ApiError("A API não devolveu os tokens de acesso.");
   }
 
-  definirToken(access_token);
+  definirTokens(access_token, refresh_token);
 
   try {
     const usuario = await authApi.me();

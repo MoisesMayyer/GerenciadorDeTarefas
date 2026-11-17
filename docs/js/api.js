@@ -6,7 +6,9 @@
  * Nenhum outro módulo chama `fetch` diretamente.
  *
  * Endpoints usados (ver README.md):
- *   POST   /auth/login                      -> token JWT (form-urlencoded)
+ *   POST   /auth/login                      -> access + refresh token (form-urlencoded)
+ *   POST   /auth/refresh                    -> renova o par de tokens
+ *   POST   /auth/logout                     -> revoga o refresh token (204)
  *   GET    /auth/me                         -> usuário autenticado
  *   POST   /usuarios/                       -> cria usuário (201)
  *   PUT    /usuarios/{id}                   -> edita nome, e-mail e/ou senha
@@ -49,10 +51,22 @@ export const API_URL = resolverApiUrl();
 /** Chave usada para guardar o token JWT no navegador. */
 const CHAVE_TOKEN = "gerenciador.token";
 
+/** Chave usada para guardar o refresh token no navegador. */
+const CHAVE_REFRESH = "gerenciador.refreshToken";
+
 /** Lê o token salvo no navegador. */
 export function obterToken() {
   try {
     return localStorage.getItem(CHAVE_TOKEN);
+  } catch {
+    return null;
+  }
+}
+
+/** Lê o refresh token salvo no navegador. */
+export function obterRefreshToken() {
+  try {
+    return localStorage.getItem(CHAVE_REFRESH);
   } catch {
     return null;
   }
@@ -68,9 +82,26 @@ export function definirToken(token) {
   }
 }
 
-/** Remove o token salvo (logout ou sessão expirada). */
+/** Salva o refresh token no navegador; com valor vazio, remove. */
+export function definirRefreshToken(token) {
+  try {
+    if (token) localStorage.setItem(CHAVE_REFRESH, token);
+    else localStorage.removeItem(CHAVE_REFRESH);
+  } catch {
+    /* localStorage pode estar bloqueado */
+  }
+}
+
+/** Salva os dois tokens de uma vez (login ou renovação). */
+export function definirTokens(accessToken, refreshToken) {
+  definirToken(accessToken);
+  definirRefreshToken(refreshToken);
+}
+
+/** Remove os tokens salvos (logout ou sessão expirada). */
 export function removerToken() {
   definirToken(null);
+  definirRefreshToken(null);
 }
 
 /**
@@ -124,6 +155,45 @@ async function lerErro(resposta) {
 }
 
 /**
+ * Renovação em andamento: evita que várias requisições que receberam 401
+ * disparem refresh simultâneos (o refresh rotaciona e invalida o anterior).
+ */
+let renovacaoEmAndamento = null;
+
+/** Tenta renovar o par de tokens. Devolve true se renovou. */
+async function renovarSessao() {
+  const refreshToken = obterRefreshToken();
+  if (!refreshToken) return false;
+
+  if (renovacaoEmAndamento) return renovacaoEmAndamento;
+
+  renovacaoEmAndamento = (async () => {
+    try {
+      const resposta = await fetch(`${API_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+        cache: "no-store",
+      });
+
+      if (!resposta.ok) return false;
+
+      const dados = await resposta.json();
+      if (!dados?.access_token || !dados?.refresh_token) return false;
+
+      definirTokens(dados.access_token, dados.refresh_token);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      renovacaoEmAndamento = null;
+    }
+  })();
+
+  return renovacaoEmAndamento;
+}
+
+/**
  * Executa uma requisição HTTP e trata resposta e falhas.
  * @param {string} caminho - caminho relativo, ex.: "/tarefas/"
  * @param {{
@@ -134,10 +204,15 @@ async function lerErro(resposta) {
  *   formulario?: boolean
  * }} [opcoes]
  */
-async function requisitar(
-  caminho,
-  { method = "GET", body, signal, autenticado = true, formulario = false } = {}
-) {
+async function requisitar(caminho, opcoes = {}) {
+  const {
+    method = "GET",
+    body,
+    signal,
+    autenticado = true,
+    formulario = false,
+    _renovou = false,
+  } = opcoes;
   const url = `${API_URL}${caminho}`;
   const headers = {};
 
@@ -181,6 +256,11 @@ async function requisitar(
 
   if (!resposta.ok) {
     if (resposta.status === 401 && autenticado) {
+      // Tenta renovar uma vez antes de encerrar a sessão.
+      if (!_renovou && (await renovarSessao())) {
+        return requisitar(caminho, { ...opcoes, _renovou: true });
+      }
+
       removerToken();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("auth:expirado"));
@@ -215,6 +295,12 @@ export const authApi = {
       formulario: true,
     }),
   me: (signal) => requisitar("/auth/me", { signal }),
+  logout: (refreshToken) =>
+    requisitar("/auth/logout", {
+      method: "POST",
+      body: { refresh_token: refreshToken },
+      autenticado: false,
+    }),
 };
 
 export const usuariosApi = {
