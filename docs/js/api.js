@@ -313,7 +313,10 @@ export const usuariosApi = {
 };
 
 export const tarefasApi = {
-  listar: (signal) => requisitar("/tarefas/", { signal }),
+  listar: ({ skip = 0, limit = 10, signal } = {}) => {
+    const params = new URLSearchParams({ skip: String(skip), limit: String(limit) });
+    return requisitar(`/tarefas/?${params.toString()}`, { signal });
+  },
   buscar: (id, signal) => requisitar(`/tarefas/tarefa/${id}`, { signal }),
   criar: (dados) => requisitar("/tarefas/nova_tarefa", { method: "POST", body: dados }),
   atualizar: (id, dados) =>

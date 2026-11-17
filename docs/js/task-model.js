@@ -22,6 +22,9 @@ export const ROTULOS_STATUS = Object.freeze({
 
 export const FILTRO_TODAS = "todas";
 
+/** Quantidade de tarefas carregadas por página. */
+export const TAMANHO_PAGINA = 10;
+
 const PESO_STATUS = {
   [STATUS.PENDENTE]: 0,
   [STATUS.CONCLUIDO]: 1,
@@ -79,6 +82,40 @@ export function normalizarTarefa(bruta) {
 export function normalizarLista(lista) {
   if (!Array.isArray(lista)) return [];
   return lista.map(normalizarTarefa).filter(Boolean);
+}
+
+function inteiroOu(valor, padrao, minimo = 0) {
+  const numero = Number(valor);
+  if (!Number.isFinite(numero) || numero < minimo) return padrao;
+  return Math.trunc(numero);
+}
+
+/**
+ * Normaliza uma página devolvida por GET /tarefas/.
+ *
+ * A API responde `{ items, skip, limit, total }`; listas simples continuam
+ * aceitas para manter a compatibilidade com versões anteriores.
+ */
+export function normalizarPagina(resposta, { skip = 0, limit = TAMANHO_PAGINA } = {}) {
+  const paginada =
+    resposta !== null && typeof resposta === "object" && !Array.isArray(resposta);
+  const itens = normalizarLista(paginada ? resposta.items : resposta);
+
+  const skipFinal = paginada ? inteiroOu(resposta.skip, skip) : skip;
+  const limitFinal = paginada
+    ? inteiroOu(resposta.limit, limit, 1)
+    : inteiroOu(limit, TAMANHO_PAGINA, 1);
+  const totalFinal = paginada
+    ? Math.max(inteiroOu(resposta.total, itens.length), itens.length)
+    : itens.length;
+
+  return {
+    tarefas: itens,
+    skip: skipFinal,
+    limit: limitFinal,
+    total: totalFinal,
+    temMais: skipFinal + itens.length < totalFinal,
+  };
 }
 
 /** Monta o corpo aceito por POST /tarefas/nova_tarefa. */

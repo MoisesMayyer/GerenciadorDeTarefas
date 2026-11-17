@@ -11,8 +11,9 @@ import {
   STATUS,
   ROTULOS_STATUS,
   FILTRO_TODAS,
+  TAMANHO_PAGINA,
   textoVazio,
-  normalizarLista,
+  normalizarPagina,
   normalizarTarefa,
   normalizarTexto,
   filtrarTarefas,
@@ -32,10 +33,15 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
   /** @type {Array<{id:number,nome:string,descricao:string,status:string}>} */
   let tarefas = [];
   let carregando = false;
+  let carregandoMais = false;
+  let total = 0;
+  let temMais = false;
   let filtro = FILTRO_TODAS;
   let busca = "";
   let erro = null;
   let carregamentoAtual = 0;
+  // Muda quando criar/excluir altera a lista; invalida uma página em trânsito.
+  let versaoLista = 0;
 
   const inscritos = new Set();
 
@@ -54,6 +60,9 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
       visiveis: visiveis(),
       contagem: contarTarefas(tarefas),
       carregando,
+      carregandoMais,
+      total,
+      temMais,
       filtro,
       busca,
       buscaAtiva: Boolean(normalizarTexto(busca)),
@@ -72,10 +81,17 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
     const indice = tarefas.findIndex((item) => item.id === tarefa.id);
     const proxima = tarefas.slice();
 
-    if (indice === -1) proxima.push(tarefa);
-    else proxima[indice] = tarefa;
+    if (indice === -1) {
+      proxima.push(tarefa);
+      // Uma tarefa nova ocupa a primeira posição da paginação do servidor.
+      total += 1;
+      versaoLista += 1;
+    } else {
+      proxima[indice] = tarefa;
+    }
 
     tarefas = ordenarTarefas(proxima);
+    temMais = tarefas.length < total;
     erro = null;
     notificar();
     return true;
@@ -87,22 +103,38 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
     if (proxima.length === tarefas.length) return false;
 
     tarefas = proxima;
+    total = Math.max(0, total - 1);
+    temMais = tarefas.length < total;
+    versaoLista += 1;
     erro = null;
     notificar();
     return true;
   }
 
-  /** Recarrega a lista a partir da API. Em falha, guarda o erro e devolve-o. */
+  /** Junta uma nova página sem duplicar tarefas já carregadas. */
+  function mesclarPagina(novas) {
+    const porId = new Map(tarefas.map((tarefa) => [tarefa.id, tarefa]));
+    for (const tarefa of novas) porId.set(tarefa.id, tarefa);
+    tarefas = ordenarTarefas([...porId.values()]);
+  }
+
+  /** Recarrega a primeira página a partir da API. Em falha, guarda o erro e devolve-o. */
   async function carregar(signal) {
     const carregamento = ++carregamentoAtual;
     carregando = true;
+    carregandoMais = false;
     erro = null;
     notificar();
 
     try {
-      const lista = await api.listar(signal);
+      const pagina = normalizarPagina(
+        await api.listar({ skip: 0, limit: TAMANHO_PAGINA, signal }),
+        { limit: TAMANHO_PAGINA }
+      );
       if (carregamento !== carregamentoAtual) return null;
-      tarefas = ordenarTarefas(normalizarLista(lista));
+      tarefas = ordenarTarefas(pagina.tarefas);
+      total = pagina.total;
+      temMais = pagina.temMais;
     } catch (falha) {
       if (carregamento !== carregamentoAtual) return null;
       if (falha?.name === "AbortError") return null;
@@ -111,9 +143,52 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
           ? falha
           : new ApiError("Falha ao carregar as tarefas.");
       tarefas = [];
+      total = 0;
+      temMais = false;
     } finally {
       if (carregamento === carregamentoAtual) {
         carregando = false;
+        notificar();
+      }
+    }
+
+    return erro;
+  }
+
+  /**
+   * Carrega a próxima página e anexa ao estado atual.
+   * Ignora chamadas enquanto uma carga está em andamento.
+   */
+  async function carregarMais() {
+    if (carregando || carregandoMais || !temMais) return null;
+
+    const carregamento = carregamentoAtual;
+    const versao = versaoLista;
+    const skip = tarefas.length;
+    carregandoMais = true;
+    erro = null;
+    notificar();
+
+    try {
+      const pagina = normalizarPagina(
+        await api.listar({ skip, limit: TAMANHO_PAGINA }),
+        { skip, limit: TAMANHO_PAGINA }
+      );
+      if (carregamento !== carregamentoAtual || versao !== versaoLista) return null;
+
+      mesclarPagina(pagina.tarefas);
+      total = Math.max(pagina.total, tarefas.length);
+      temMais = tarefas.length < total;
+    } catch (falha) {
+      if (carregamento !== carregamentoAtual) return null;
+      if (falha?.name === "AbortError") return null;
+      erro =
+        falha instanceof ApiError
+          ? falha
+          : new ApiError("Falha ao carregar mais tarefas.");
+    } finally {
+      if (carregamento === carregamentoAtual) {
+        carregandoMais = false;
         notificar();
       }
     }
@@ -183,6 +258,7 @@ export function criarGerenciadorTarefas(api = tarefasApi) {
     },
     estado,
     carregar,
+    carregarMais,
     adicionar,
     atualizar,
     alternarConclusao,

@@ -70,6 +70,7 @@ export function criarInterface({ gerenciador }) {
     vazioTitulo: qs("#vazio-titulo"),
     vazioTexto: qs("#vazio-texto"),
     tasksScroll: qs("#tasks-scroll"),
+    carregarMais: qs("#carregar-mais"),
 
     busca: qs("#busca-tarefas"),
     limparBusca: qs("#limpar-busca"),
@@ -273,6 +274,11 @@ export function criarInterface({ gerenciador }) {
     dom.limparBusca.hidden = !estado.busca;
 
     dom.loading.hidden = !estado.carregando;
+    dom.carregarMais.hidden = estado.carregando || !estado.temMais;
+    definirOcupado(dom.carregarMais, estado.carregandoMais);
+    dom.carregarMais.textContent = estado.carregandoMais
+      ? "Carregando mais…"
+      : "Carregar mais";
     const semItens = estado.visiveis.length === 0;
     dom.vazio.hidden = estado.carregando || !semItens;
     dom.lista.hidden = estado.carregando || semItens;
@@ -414,6 +420,10 @@ export function criarInterface({ gerenciador }) {
   }
 
   configurarBusca();
+
+  dom.carregarMais.addEventListener("click", () => {
+    gerenciador.carregarMais();
+  });
 
   // Ações dos cards (delegação de eventos).
   dom.lista.addEventListener("click", (evento) => {

@@ -1005,6 +1005,11 @@ select.field__input {
   list-style: none;
 }
 
+.tasks-more {
+  width: 100%;
+  margin-top: var(--space-3);
+}
+
 .task {
   position: relative;
   display: grid;
