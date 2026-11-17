@@ -82,13 +82,15 @@ python -c "import secrets; print(secrets.token_hex(32))"
 Preencha `SECRET_KEY` com a chave gerada e ajuste `DATABASE_URL` para o seu PostgreSQL local (driver `psycopg` 3). Depois:
 
 ```bash
-alembic upgrade head             # da raiz do projeto
+PYTHONPATH=backend alembic upgrade head    # da raiz do projeto
 cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
 > [!TIP]
-> Rode o **Alembic na raiz** (onde está o `alembic.ini`) e o **Uvicorn de dentro de `backend/`**. O schema vem das migrações, não de `create_all`.
+> Rode o **Alembic na raiz** com `PYTHONPATH=backend`, porque o `env.py` importa `app.config`. O **Uvicorn** roda de dentro de `backend/`. O schema vem das migrações, não de `create_all`.
+>
+> No Windows: `set PYTHONPATH=backend` (cmd) ou `$env:PYTHONPATH="backend"` (PowerShell).
 
 Documentação local: **http://localhost:8000/docs**.
 
@@ -106,14 +108,14 @@ Documentação local: **http://localhost:8000/docs**.
 | `CORS_ORIGINS` | `https://moisesmayyer.github.io` | Origens permitidas, separadas por vírgula |
 
 ```bash
-alembic upgrade head                              # aplica migrations pendentes
-alembic current                                   # revisão aplicada
-alembic history                                   # histórico
-alembic revision --autogenerate -m "descricao"    # nova revisão a partir dos models
-alembic downgrade -1                              # desfaz a última
+PYTHONPATH=backend alembic upgrade head                              # aplica as migrações pendentes
+PYTHONPATH=backend alembic current                                   # revisão aplicada
+PYTHONPATH=backend alembic history                                   # histórico
+PYTHONPATH=backend alembic revision --autogenerate -m "descricao"    # nova revisão a partir dos models
+PYTHONPATH=backend alembic downgrade -1                              # desfaz a última
 ```
 
-Para zerar o banco local: `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` e rode `alembic upgrade head` de novo.
+Para zerar o banco local: `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` e rode `PYTHONPATH=backend alembic upgrade head` de novo.
 
 </details>
 
@@ -138,10 +140,10 @@ O `conftest.py` monta `test_gerenciador_tarefas` a partir de `DATABASE_URL`, ace
 
 - **Root directory:** raiz do repositório.
 - **Build:** `pip install -r requirements.txt`
-- **Start:** `alembic upgrade head && PYTHONPATH=backend uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **Start:** `PYTHONPATH=backend alembic upgrade head && PYTHONPATH=backend uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - **Variáveis:** as mesmas do `backend/.env`.
 
-Ao iniciar, o comando aplica as migrações antes de subir a API. O `PYTHONPATH=backend` deixa o pacote `app` importável sem precisar de `cd`.
+Ao iniciar, o comando aplica as migrações antes de subir a API. O `PYTHONPATH=backend` precisa aparecer nos dois comandos: o `env.py` importa `app.config` e o Uvicorn importa `app.main`.
 
 **Frontend — GitHub Pages**
 
@@ -349,7 +351,7 @@ GerenciadorDeTarefas/
 
 **Cascade no ORM e no banco.** O ORM apaga as tarefas junto com o usuário; a FK com `ON DELETE CASCADE` cobre exclusões feitas fora do ORM.
 
-**Alembic para versionar o schema.** O schema nasce das migrações e é atualizado com `alembic upgrade head`, inclusive no start do deploy. Nos testes, o `conftest.py` recria as tabelas a cada caso para manter o isolamento.
+**Alembic para versionar o schema.** O schema nasce das migrações e é atualizado com `PYTHONPATH=backend alembic upgrade head`, inclusive no start do deploy. Nos testes, o `conftest.py` recria as tabelas a cada caso para manter o isolamento.
 
 **CORS restrito e `allow_credentials=False`.** O login usa Bearer token, não cookie, por isso `allow_credentials=False`. Por padrão, só a origem publicada é aceita.
 
