@@ -1,344 +1,271 @@
 # Gerenciador de Tarefas API
 
-API REST **multi-usuário** para tarefas pessoais, com JWT e isolamento por usuário, e frontend em HTML, CSS e JavaScript puro.
-
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.143-009688?logo=fastapi&logoColor=white)
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.1-D71F00)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![Pydantic](https://img.shields.io/badge/Pydantic-2.14-E92063)
-![PyJWT](https://img.shields.io/badge/PyJWT-2.15-000000?logo=jsonwebtokens&logoColor=white)
-![Frontend](https://img.shields.io/badge/Frontend-HTML%20%2B%20CSS%20%2B%20JS-F7DF1E?logo=javascript&logoColor=black)
-![testes](https://img.shields.io/badge/testes-57%20passando-brightgreen)
+![Alembic](https://img.shields.io/badge/Alembic-1.20-6BA81E)
+![JWT](https://img.shields.io/badge/JWT-HS256-000000?logo=jsonwebtokens&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)
+![pytest](https://img.shields.io/badge/pytest-testado-0A9EDC?logo=pytest&logoColor=white)
+![CI](https://github.com/MoisesMayyer/GerenciadorDeTarefas/actions/workflows/python-package.yml/badge.svg?branch=main)
+![Render](https://img.shields.io/badge/Render-46E3B7?logo=render&logoColor=white)
+![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-222222?logo=githubpages&logoColor=white)
 
-> **Projeto de estudo e portfólio.** Começou como CRUD em FastAPI e evoluiu para sistema multi-usuário com JWT, isolamento por dono e interface própria.
+API REST **multi-usuário** para tarefas pessoais. Tem login com JWT, cada conta acessa apenas as próprias tarefas e o frontend é feito em HTML, CSS e JavaScript puro.
 
-**No ar:**
+[Demo](https://moisesmayyer.github.io/GerenciadorDeTarefas/) · [API](https://gerenciadordetarefas-eesn.onrender.com) · [Swagger](https://gerenciadordetarefas-eesn.onrender.com/docs)
 
-- **Frontend:** https://moisesmayyer.github.io/GerenciadorDeTarefas/
-- **API:** https://gerenciadordetarefas-eesn.onrender.com
-- **Banco:** PostgreSQL.
+> [!NOTE]
+> Projeto de estudo e portfólio. Começou como um CRUD em FastAPI e cresceu para um sistema com contas, refresh token rotativo, migrações versionadas, testes de integração e deploy.
 
 ## Sumário
 
-- [Sobre o projeto](#sobre-o-projeto)
-- [Funcionalidades](#funcionalidades)
-- [Stack](#stack)
-- [Como rodar](#como-rodar)
-- [Deploy](#deploy)
-- [Como usar](#como-usar)
-- [Endpoints](#endpoints)
-- [Regras de negócio](#regras-de-negócio)
-- [Códigos de status](#códigos-de-status)
-- [Modelo de dados](#modelo-de-dados)
-- [Estrutura do projeto](#estrutura-do-projeto)
-- [Frontend](#frontend)
-- [Decisões técnicas](#decisões-técnicas)
-- [Qualidade](#qualidade)
-- [O que falta](#o-que-falta)
+[Sobre](#sobre-o-projeto) · [Funcionalidades](#funcionalidades) · [Stack](#stack) · [Como rodar](#como-rodar) · [Deploy](#deploy) · [Como usar](#como-usar) · [Endpoints](#endpoints) · [Regras](#regras-de-negócio) · [Códigos](#códigos-de-status) · [Modelo de dados](#modelo-de-dados) · [Frontend](#frontend) · [Decisões](#decisões-técnicas) · [Qualidade](#qualidade) · [O que falta](#o-que-falta)
 
 ## Sobre o projeto
 
-O sistema permite criar, concluir, cancelar e excluir tarefas pessoais, com nome, descrição e status (`pendente`, `concluido` ou `cancelado`).
+Com o sistema, você cria, conclui, cancela e exclui tarefas pessoais. Cada tarefa tem nome, descrição e um status: `pendente`, `concluido` ou `cancelado`.
 
-O recorte principal é o **multi-usuário**: cada conta acessa apenas as próprias tarefas. Toda consulta filtra pelo `usuario_id` do token, nunca pelo corpo; registros de outra conta respondem **404**. O frontend em `docs/` consome a API atual — sem prioridade, vencimento, etiquetas, busca no servidor ou paginação; busca e filtros são locais.
+O ponto central é o **multi-usuário**: cada conta vê apenas os próprios dados. Se tentar acessar algo de outra conta, a API responde **404**.
 
-> **Banco:** PostgreSQL via `psycopg`; schema versionado com **Alembic** (`alembic upgrade head`).
+```mermaid
+flowchart LR
+    B["Navegador"] -->|"HTTPS"| F["Frontend<br/>GitHub Pages"]
+    B -->|"HTTPS + Bearer JWT nas rotas protegidas"| A["API FastAPI<br/>Render"]
+    A -->|"SQLAlchemy + psycopg"| P[("PostgreSQL")]
+    M["Alembic"] -.->|"migrações no deploy"| P
+```
+
+**O que o projeto cobre hoje:** autenticação, gestão de conta e CRUD de tarefas. Ficam de fora recursos como prioridade, prazo, etiquetas, compartilhamento e painel de administração.
 
 ## Funcionalidades
 
-- Cadastro, login e gestão da própria conta (`/usuarios`, `/auth`)
-- Senhas com **Argon2** e autenticação **JWT** (OAuth2 Password Flow)
-- CRUD de **tarefas** com status `pendente`, `concluido` e `cancelado`
-- Isolamento por usuário em todas as rotas de tarefas
-- Login/logout no frontend, com sessão persistida no navegador
-- Tema claro/escuro com preferência salva
-- Busca sem distinção de acentos ou maiúsculas, filtros por status e contadores
-- Layout responsivo, foco visível, diálogos nativos, `aria-live` e `prefers-reduced-motion`
+- **Contas:** cadastro, login, perfil, troca de senha, desativação e exclusão (que também apaga as tarefas).
+- **Login:** senha protegida com **Argon2**, access token JWT de 30 minutos e refresh token de 7 dias que muda a cada uso. O logout revoga a sessão.
+- **Tarefas:** criar, listar, buscar, atualizar, cancelar e excluir, com status, busca por descrição e paginação no servidor.
+- **Isolamento:** toda consulta usa o `usuario_id` que vem do token, nunca do corpo da requisição.
+- **Frontend:** login, sessão salva no navegador, renovação automática quando o token expira, tema claro/escuro, filtros, contadores e perfil em modal.
+- **Produção:** migrações com Alembic, CORS restrito, limite de requisições e CI no GitHub Actions.
 
 ## Stack
 
 | Camada | Tecnologia |
 |---|---|
-| Linguagem | Python 3.11+ (testado em 3.14) |
-| Framework | FastAPI 0.143 |
-| ORM | SQLAlchemy 2.1 |
-| Validação/serialização | Pydantic 2.14 + pydantic-settings |
-| Banco | PostgreSQL (psycopg) |
+| Linguagem | Python 3.11+ (CI em 3.14) |
+| Framework | FastAPI 0.143 + Uvicorn |
+| ORM / banco | SQLAlchemy 2.1 + PostgreSQL (psycopg 3) |
+| Validação | Pydantic 2.14 + pydantic-settings |
 | Migrações | Alembic 1.20 |
-| Servidor | Uvicorn |
-| Hash de senha | pwdlib (Argon2) |
-| Token | PyJWT (HS256) |
-| Frontend | HTML5, CSS3 e JS (módulos ES) |
-| Comunicação | Fetch API |
-| Deploy | Render + GitHub Pages |
-| Qualidade | pytest + TestClient (PostgreSQL) e checagem de sintaxe JS |
+| Autenticação | PyJWT (HS256), pwdlib (Argon2), slowapi |
+| Frontend | HTML5, CSS3 e JavaScript (módulos ES) |
+| Testes | pytest + TestClient sobre PostgreSQL real |
+| Deploy | Render (API) + GitHub Pages (frontend) |
 
 ## Como rodar
 
-**Requisitos:** Python 3.11+, PostgreSQL e `git`.
+Antes de começar, você precisa de Python 3.11+, PostgreSQL e Git.
 
 ```bash
-# 1. Clone e entre no projeto
 git clone https://github.com/MoisesMayyer/GerenciadorDeTarefas.git
 cd GerenciadorDeTarefas
 
-# 2. Crie e ative o ambiente virtual
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-# 3. Instale as dependências
 pip install -r requirements.txt
 
-# 4. Copie o arquivo de ambiente e gere uma chave para o JWT
 cp backend/.env.example backend/.env
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Cole a chave gerada em `SECRET_KEY` no `backend/.env` (ignorado pelo Git) e ajuste `DATABASE_URL` ao PostgreSQL local (driver `psycopg` 3). `CORS_ORIGINS` é uma lista separada por vírgulas (padrão: `https://moisesmayyer.github.io`); as origens locais permitem o frontend em `http://localhost:5500`.
+Preencha `SECRET_KEY` com a chave gerada e ajuste `DATABASE_URL` para o seu PostgreSQL local (driver `psycopg` 3). Depois:
 
 ```bash
-# 5. Aplique as migrations (da raiz do projeto)
-alembic upgrade head
-
-# 6. Suba a API (de dentro de backend/)
+alembic upgrade head             # da raiz do projeto
 cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
-> Rode o Alembic da **raiz** (onde está o `alembic.ini`) e o Uvicorn de dentro de `backend/` (módulo `app.main`). O schema é criado pelas migrations, não por `create_all`. Documentação local: **http://localhost:8000/docs**.
+> [!TIP]
+> Rode o **Alembic na raiz** (onde está o `alembic.ini`) e o **Uvicorn de dentro de `backend/`**. O schema vem das migrações, não de `create_all`.
 
-Para **resetar**, execute `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` no PostgreSQL e rode `alembic upgrade head` novamente.
+Documentação local: **http://localhost:8000/docs**.
 
-### Migrações (Alembic)
+<details>
+<summary>Variáveis de ambiente e comandos do Alembic</summary>
 
-As migrations ficam em `alembic/versions/` e leem o `DATABASE_URL` de `backend/.env`. Rode os comandos da **raiz do projeto**:
+| Variável | Padrão | Uso |
+|---|---|---|
+| `SECRET_KEY` | — | Assinatura do JWT (obrigatória) |
+| `ALGORITHM` | `HS256` | Algoritmo do token |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Validade do access token |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Validade do refresh token |
+| `DATABASE_URL` | — | Conexão PostgreSQL (obrigatória) |
+| `TEST_DATABASE_URL` | — | Banco isolado para testes (opcional) |
+| `CORS_ORIGINS` | `https://moisesmayyer.github.io` | Origens permitidas, separadas por vírgula |
 
 ```bash
-alembic upgrade head                              # aplica as migrations pendentes
-alembic current                                   # revisão aplicada no banco
-alembic history                                   # histórico de revisões
-alembic revision --autogenerate -m "descricao"    # cria uma revisão a partir dos models
-alembic downgrade -1                              # desfaz a última revisão
+alembic upgrade head                              # aplica migrations pendentes
+alembic current                                   # revisão aplicada
+alembic history                                   # histórico
+alembic revision --autogenerate -m "descricao"    # nova revisão a partir dos models
+alembic downgrade -1                              # desfaz a última
 ```
 
-Ao alterar os models em `backend/app/database/models.py`, gere a revisão com `--autogenerate`, confira o arquivo criado em `alembic/versions/` e aplique com `alembic upgrade head`. A revisão inicial (`b18754318baa`) cria as tabelas `usuarios` e `tarefas`, o índice único de e-mail, o índice de `usuario_id` e a FK com `ON DELETE CASCADE`.
+Para zerar o banco local: `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` e rode `alembic upgrade head` de novo.
+
+</details>
+
+> [!WARNING]
+> `backend/.env` contém segredos e é ignorado pelo Git. Nunca faça commit da `SECRET_KEY`, da senha do banco ou de um `.env` real.
 
 ### Testes
 
-A suíte usa **PostgreSQL real** e cria/recria as tabelas a cada teste. Crie o banco de teste uma vez:
+A suíte usa **PostgreSQL real** e recria o schema a cada teste. Crie o banco uma vez:
 
 ```bash
 psql -U postgres -c "CREATE DATABASE test_gerenciador_tarefas;"
-```
-
-Instale as dependências de desenvolvimento e rode:
-
-```bash
 pip install -r requirements-dev.txt
-cd backend
-pytest
+cd backend && pytest
 ```
 
-O `conftest.py` deriva `test_gerenciador_tarefas` a partir de `DATABASE_URL` e aceita `TEST_DATABASE_URL` para sobrescrever. Por segurança, a suíte só roda se o nome do banco começar com `test_`.
+O `conftest.py` monta `test_gerenciador_tarefas` a partir de `DATABASE_URL`, aceita `TEST_DATABASE_URL` e só roda se o nome do banco começar com `test_`.
 
 ## Deploy
 
-API no Render e frontend no GitHub Pages.
+**API — Render**
 
-### API (Render)
+- **Root directory:** raiz do repositório.
+- **Build:** `pip install -r requirements.txt`
+- **Start:** `alembic upgrade head && PYTHONPATH=backend uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **Variáveis:** as mesmas do `backend/.env`.
 
-- **Root directory:** raiz do repositório (vazio). O `alembic.ini` e a pasta `alembic/` ficam aqui.
-- **Build command:** `pip install -r requirements.txt`
-- **Start command:** `alembic upgrade head && PYTHONPATH=backend uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- **Variáveis:** `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `DATABASE_URL` e, se necessário, `CORS_ORIGINS`.
+Ao iniciar, o comando aplica as migrações antes de subir a API. O `PYTHONPATH=backend` deixa o pacote `app` importável sem precisar de `cd`.
 
-O start roda `alembic upgrade head` **antes** do Uvicorn: cada deploy aplica as migrations pendentes e só então inicia a API. O Alembic roda da raiz (onde está o `alembic.ini`) e `PYTHONPATH=backend` deixa o pacote `app` importável sem precisar de `cd`. Por isso a Root Directory precisa ser a raiz do repositório.
-
-Configure as chaves do `backend/.env` em **Environment** no Render.
-
-### Frontend (GitHub Pages)
+**Frontend — GitHub Pages**
 
 - Publicado a partir de `docs/` na branch `main`.
-- `docs/js/api.js` usa `https://gerenciadordetarefas-eesn.onrender.com` como URL padrão.
+- `docs/js/api.js` aponta por padrão para a API no Render.
 - Para outra API, defina `window.TASK_API_URL` antes do `main.js` ou grave `gerenciador.apiUrl` no `localStorage`.
 
-### CORS
+**Banco e CORS**
 
-A API aceita apenas a origem do frontend publicado:
+- Use um PostgreSQL gerenciado (Render, Neon ou Supabase) para os dados continuarem lá entre deploys.
+- Em produção, mantenha apenas a origem publicada:
 
 ```env
 CORS_ORIGINS=https://moisesmayyer.github.io
 ```
 
-Para o frontend local, adicione `http://localhost:5500` e `http://127.0.0.1:5500` ao `backend/.env`; em produção, use só o domínio do GitHub Pages.
+Para desenvolver localmente, adicione `http://localhost:5500` e `http://127.0.0.1:5500`.
 
-### Banco de dados
-
-PostgreSQL via `DATABASE_URL`; no Render, use um banco gerenciado (Render, Neon ou Supabase) para persistir entre deploys. Driver `psycopg` 3; migrations versionadas com **Alembic**, aplicadas no start do deploy com `alembic upgrade head`.
+> [!IMPORTANT]
+> O plano gratuito do Render coloca a API para dormir. A primeira requisição depois de um tempo parada pode levar alguns segundos (**cold start**).
 
 ## Como usar
 
-### 1. Criar uma conta
+Se o frontend estiver aberto, crie uma conta pela tela de cadastro — ele já entra em seguida. Para testar a API direto:
 
 ```bash
+# 1. Criar conta
 curl -X POST http://localhost:8000/usuarios/ \
   -H "Content-Type: application/json" \
   -d '{"nome": "Ana", "email": "ana@email.com", "senha": "senha123"}'
-```
 
-```json
-{"id": 1, "nome": "Ana", "email": "ana@email.com", "ativo": true}
-```
-
-### 2. Fazer login e obter o token
-
-Login via `application/x-www-form-urlencoded` (OAuth2), não JSON:
-
-```bash
+# 2. Login (form-urlencoded, padrão OAuth2)
 curl -X POST http://localhost:8000/auth/login \
   -d "username=ana@email.com&password=senha123"
-```
 
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
-  "refresh_token": "3sF...token-opaco...",
-  "token_type": "bearer"
-}
-```
-
-O `access_token` (JWT) dura 30 minutos. O `refresh_token` é opaco, dura 7 dias e serve para renovar o par sem pedir a senha de novo.
-
-### 3. Renovar ou revogar a sessão
-
-```bash
-# Renova o par: o refresh usado é revogado (rotação)
-curl -X POST http://localhost:8000/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{"refresh_token": "cole-o-refresh-token-aqui"}'
-
-# Logout: revoga o refresh token (204, idempotente)
-curl -i -X POST http://localhost:8000/auth/logout \
-  -H "Content-Type: application/json" \
-  -d '{"refresh_token": "cole-o-refresh-token-aqui"}'
-```
-
-### 4. Usar o token nas rotas protegidas
-
-```bash
+# 3. Guardar o access token e criar uma tarefa
 TOKEN="cole-o-access-token-aqui"
-```
-
-Envie `Authorization: Bearer $TOKEN` nas rotas protegidas.
-
-### 5. Criar e listar tarefas
-
-```bash
 curl -X POST http://localhost:8000/tarefas/nova_tarefa \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"nome": "Estudar FastAPI", "descricao": "rotas, schemas e testes"}'
 ```
 
-```json
-{
-  "id": 1,
-  "nome": "Estudar FastAPI",
-  "descricao": "rotas, schemas e testes",
-  "status": "pendente"
-}
-```
+<details>
+<summary>Exemplos de refresh, logout, atualização, cancelamento e exclusão</summary>
 
 ```bash
-curl http://localhost:8000/tarefas/ \
-  -H "Authorization: Bearer $TOKEN"
-```
+# Renova o par; o refresh usado é revogado (rotação)
+curl -X POST http://localhost:8000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "cole-o-refresh-token"}'
 
-### 6. Atualizar, cancelar e excluir
+# Logout: revoga o refresh token (204, idempotente)
+curl -i -X POST http://localhost:8000/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "cole-o-refresh-token"}'
 
-```bash
-# Atualização parcial: envie apenas os campos que deseja mudar
+# Atualização parcial: envie só o que deseja mudar
 curl -X PUT http://localhost:8000/tarefas/atualizar_tarefa/1 \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status": "concluido"}'
 
-# Cancelamento (sem corpo)
+# Cancelamento e exclusão
 curl -X PATCH http://localhost:8000/tarefas/cancelar_tarefa/1 \
   -H "Authorization: Bearer $TOKEN"
 
-# Exclusão
 curl -i -X DELETE http://localhost:8000/tarefas/deletar_tarefa/1 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### 7. Abrir o frontend
+</details>
 
-Localmente, em outro terminal:
+Frontend local:
 
 ```bash
 python -m http.server 5500 --directory docs
 ```
 
-Abra **http://localhost:5500**, crie uma conta e ela já entra; depois, use e-mail e senha.
+Abra **http://localhost:5500**. Módulos ES precisam de HTTP; abrir com `file://` não funciona.
 
 ## Endpoints
 
-As rotas de tarefas e as autenticadas de usuário exigem `Authorization: Bearer <token>`; "dono" indica que o registro pertence ao usuário autenticado, senão **404**.
+As rotas protegidas pedem `Authorization: Bearer <token>`. "Dono" quer dizer que o registro pertence ao usuário logado; se não pertencer, a resposta é **404**.
 
-### Autenticação
+| Grupo | Método | Rota | Acesso | Descrição |
+|---|---|---|---|---|
+| Auth | POST | `/auth/login` | público | Autentica e devolve access + refresh |
+| Auth | POST | `/auth/refresh` | público | Renova o par, rotacionando o refresh |
+| Auth | POST | `/auth/logout` | público | Revoga o refresh (`204`) |
+| Auth | GET | `/auth/me` | autenticado | Usuário do token |
+| Usuários | GET | `/usuarios/` | autenticado | Lista apenas a própria conta |
+| Usuários | GET | `/usuarios/{id}` | dono | Busca o próprio usuário |
+| Usuários | POST | `/usuarios/` | público | Cria conta (`201`) |
+| Usuários | PUT | `/usuarios/{id}` | dono | Edita nome, e-mail e/ou senha |
+| Usuários | PATCH | `/usuarios/{id}/cancelar` | dono | Desativa a conta |
+| Usuários | DELETE | `/usuarios/{id}` | dono | Exclui conta e tarefas (`204`) |
+| Tarefas | GET | `/tarefas/` | autenticado | Lista com paginação e busca |
+| Tarefas | GET | `/tarefas/tarefa/{id}` | dono | Busca uma tarefa |
+| Tarefas | POST | `/tarefas/nova_tarefa` | autenticado | Cria tarefa (`201`) |
+| Tarefas | PUT | `/tarefas/atualizar_tarefa/{id}` | dono | Atualização parcial |
+| Tarefas | PATCH | `/tarefas/cancelar_tarefa/{id}` | dono | Define status `cancelado` |
+| Tarefas | DELETE | `/tarefas/deletar_tarefa/{id}` | dono | Exclusão lógica (`204`) |
+| Sistema | GET | `/` | público | Verificação simples da API |
 
-| Método | Rota | Acesso | Descrição |
-|---|---|---|---|
-| POST | `/auth/login` | público | Autentica e devolve access + refresh token |
-| POST | `/auth/refresh` | público | Renova o par de tokens (rotaciona o refresh) |
-| POST | `/auth/logout` | público | Revoga o refresh token (`204`) |
-| GET | `/auth/me` | autenticado | Dados do usuário do token |
-
-### Usuários
-
-| Método | Rota | Acesso | Descrição |
-|---|---|---|---|
-| GET | `/usuarios/` | autenticado | Lista a própria conta |
-| GET | `/usuarios/{id}` | dono | Busca o próprio usuário |
-| POST | `/usuarios/` | público | Cria uma conta (`201`) |
-| PUT | `/usuarios/{id}` | dono | Edita nome, e-mail e/ou senha |
-| PATCH | `/usuarios/{id}/cancelar` | dono | Desativa a conta (`ativo = false`) |
-| DELETE | `/usuarios/{id}` | dono | Remove a conta e suas tarefas (`204`) |
-
-### Tarefas
-
-| Método | Rota | Acesso | Descrição |
-|---|---|---|---|
-| GET | `/tarefas/` | autenticado | Lista as tarefas do usuário |
-| GET | `/tarefas/tarefa/{id}` | dono | Busca uma tarefa |
-| POST | `/tarefas/nova_tarefa` | autenticado | Cria uma tarefa (`201`) |
-| PUT | `/tarefas/atualizar_tarefa/{id}` | dono | Atualiza campos parcialmente |
-| PATCH | `/tarefas/cancelar_tarefa/{id}` | dono | Marca a tarefa como `cancelado` |
-| DELETE | `/tarefas/deletar_tarefa/{id}` | dono | Remove a tarefa (`204`) |
-
-### Sistema
-
-| Método | Rota | Acesso | Descrição |
-|---|---|---|---|
-| GET | `/` | público | Verificação simples da API |
+`GET /tarefas/` aceita `skip` (padrão `0`), `limit` (padrão `10`, máximo `100`) e `busca` (trecho da descrição, sem diferenciar maiúsculas). A resposta é `{ "items": [...], "skip": 0, "limit": 10, "total": 1 }`.
 
 ## Regras de negócio
 
 | Recurso | Regra |
 |---|---|
-| Usuário | Nome de 1 a 50 caracteres; e-mail válido e único; senha de 6 a 128 caracteres; senha não pode ser só espaços; e-mail em minúsculas |
-| Usuário | Contas inativas não autenticam nem usam o token |
-| Usuário | Cada conta só lê, edita, desativa ou exclui a si mesma; outro `id` responde `404` |
-| Usuário | A exclusão da conta remove todas as tarefas em cascata |
-| Tarefa | `nome` e `descricao` são obrigatórios na criação; a descrição pode ser vazia |
-| Tarefa | `status` aceita `pendente`, `concluido` ou `cancelado`; o padrão é `pendente` |
-| Tarefa | O `usuario_id` vem sempre do token, nunca do corpo da requisição |
-| Tarefa | Listagens e operações por ID são filtradas pelo dono; tarefa de outro usuário responde `404` |
+| Usuário | Nome de 1 a 50 caracteres; e-mail válido, único e em minúsculas; senha de 6 a 128 caracteres, não só espaços |
+| Usuário | Conta inativa não autentica nem usa tokens existentes |
+| Usuário | Cada conta só pode ler, editar, desativar ou excluir a própria conta; outro `id` responde `404` |
+| Usuário | Excluir a conta remove tarefas e refresh tokens em cascade |
+| Tarefa | `nome` e `descricao` são obrigatórios; a descrição pode ser vazia; status padrão `pendente` |
+| Tarefa | O `usuario_id` vem sempre do token, nunca do corpo |
+| Tarefa | Listagens e operações por ID são filtradas pelo dono; tarefa alheia responde `404` |
 | Tarefa | `PUT` é parcial: campos omitidos ou `null` são ignorados; para limpar a descrição, envie `""` |
-| Tarefa | `PATCH /cancelar_tarefa/{id}` sempre define o status como `cancelado` |
-| Autenticação | O token expira em 30 minutos (`ACCESS_TOKEN_EXPIRE_MINUTES`); ausente, inválido, expirado ou de usuário inativo responde `401` |
+| Tarefa | `DELETE` é lógico (`deletado = true`); a linha permanece no banco e some de todas as consultas |
+| Sessão | Access token expira em 30 min; refresh em 7 dias e é rotacionado a cada uso |
+
+> [!CAUTION]
+> A exclusão da conta é definitiva e remove todas as tarefas e sessões. A API não oferece recuperação nem lixeira.
 
 ## Códigos de status
 
@@ -346,119 +273,92 @@ As rotas de tarefas e as autenticadas de usuário exigem `Authorization: Bearer 
 |---|---|
 | `200` | Operações concluídas em usuários e tarefas |
 | `201` | Criação de usuário ou tarefa |
-| `204` | Exclusão de usuário ou tarefa (sem corpo) |
-| `401` | Token ausente/inválido/expirado, usuário inativo ou credenciais incorretas |
-| `404` | Usuário ou tarefa inexistente, ou pertencente a outra conta |
+| `204` | Exclusão ou logout, sem corpo |
+| `401` | Token ausente, inválido ou expirado; usuário inativo; credenciais incorretas |
+| `404` | Registro inexistente ou pertencente a outra conta |
 | `409` | E-mail já cadastrado |
 | `422` | Corpo inválido (validação do Pydantic) |
+| `429` | Rate limit excedido |
+
+> [!WARNING]
+> O limite padrão do projeto é **5 requisições por minuto por IP**, configurado em `backend/app/limiter.py`.
 
 ## Modelo de dados
 
-```
+```text
 usuarios (1) ──< tarefas
+usuarios (1) ──< refresh_tokens
 ```
 
-| Tabela | Campos |
+| Tabela | Campos principais |
 |---|---|
 | `usuarios` | `id`, `nome`, `email` (único e indexado), `senha` (hash Argon2), `ativo` |
-| `tarefas` | `id`, `nome`, `descricao`, `status`, `usuario_id` |
+| `tarefas` | `id`, `nome`, `descricao`, `status`, `usuario_id`, `deletado` |
+| `refresh_tokens` | `id`, `token_hash` (único), `usuario_id`, `expira_em`, `revogado` |
 
-- Relacionamento **1:N**; `status` usa `CHECK` com os três valores (`native_enum=False`).
-- `usuario_id` é `NOT NULL`, indexado (`ix_tarefas_usuario_id`) e referencia `usuarios.id` com `ON DELETE CASCADE`.
-- Exclusão de usuário remove as tarefas em cascata pelo ORM (`cascade="all, delete-orphan"`) e também pelo banco (`ON DELETE CASCADE`), como defesa em profundidade.
-- Como o schema é versionado com Alembic, um banco já existente recebe índice, constraint ou coluna novos com uma revisão aplicada por `alembic upgrade head`. A migration inicial já inclui o índice `ix_tarefas_usuario_id`, o índice único de e-mail e a FK com `ON DELETE CASCADE`:
-
-```bash
-alembic upgrade head
-```
+- O relacionamento é **1:N**; o `status` usa `CHECK` com os três valores (`native_enum=False`).
+- `usuario_id` é `NOT NULL`, indexado e usa `ON DELETE CASCADE`.
+- `criado_em` e `atualizado_em` existem em todas as tabelas via `TimestampMixin`, mas ainda não aparecem nas respostas da API.
+- A migração inicial cria as tabelas, o índice único de e-mail, o índice de `usuario_id` e as FKs com cascade.
 
 ## Estrutura do projeto
 
-```
+```text
 GerenciadorDeTarefas/
-├── alembic/
-│   ├── env.py               # configura engine e target_metadata
-│   ├── script.py.mako
-│   └── versions/            # revisões de schema
-├── alembic.ini
+├── alembic/versions/          # revisões de schema
 ├── backend/
 │   ├── app/
-│   │   ├── database/        # database.py (engine/sessão/Base) e models.py
-│   │   ├── routers/         # auth.py, tarefas.py e usuarios.py
-│   │   ├── schemas/         # schemas de tarefas, token e usuários
-│   │   ├── config.py        # settings do .env
-│   │   ├── depends.py       # get_db e verificação do JWT
-│   │   ├── security.py      # hash Argon2 e token
-│   │   └── main.py          # app, CORS e routers
-│   ├── .env                 # segredos (ignorado pelo Git)
-│   ├── .env.example         # modelo de configuração
-│   ├── pytest.ini
-│   └── tests/
-│       ├── conftest.py
-│       └── routes/          # test_auth, test_sistema, test_tarefas e test_usuarios
-├── docs/                    # frontend (GitHub Pages)
+│   │   ├── database/          # engine, sessão, Base, models e TimestampMixin
+│   │   ├── routers/           # auth.py, tarefas.py e usuarios.py
+│   │   ├── schemas/           # schemas Pydantic
+│   │   ├── config.py          # settings do .env
+│   │   ├── depends.py         # get_db e verificação do JWT
+│   │   ├── limiter.py         # rate limiting (slowapi)
+│   │   ├── security.py        # Argon2, JWT e refresh token
+│   │   └── main.py            # app, CORS, limiter e routers
+│   ├── .env.example           # modelo das variáveis de ambiente
+│   └── tests/routes/          # auth, sistema, tarefas e usuários
+├── docs/                      # frontend publicado no GitHub Pages
 │   ├── css/style.css
-│   ├── js/                  # api, auth, main, task-model, tasks, theme e ui
+│   ├── js/                    # api, auth, main, perfil, task-model, tasks, theme, ui
 │   └── index.html
-├── README.md
+├── .github/workflows/python-package.yml
+├── alembic.ini
 ├── requirements.txt
-├── requirements-dev.txt
-└── .gitignore
+└── requirements-dev.txt
 ```
 
 ## Frontend
 
-O frontend não usa framework nem bibliotecas de UI. A direção **Calm Ledger** combina tipografia nativa, cobalto e teal.
-
-- A primeira tela é o **login**; com sessão válida, o app abre direto.
-- O token JWT fica no `localStorage` e é enviado nas requisições; logout limpa a sessão e token inválido volta ao login.
-- O nome no topo abre o **perfil** em modal: editar nome, e-mail e senha, desativar ou excluir a conta.
-- Tema claro/escuro salvo em `gerenciador.tema`; na primeira visita, segue o sistema.
-- Busca e filtros são **locais**, sobre a lista já carregada.
-- Duas colunas no desktop e uma no mobile, com foco visível e movimento reduzido.
-
-Separação intencional: `task-model.js` é puro (sem DOM/HTTP), `tasks.js` concentra estado e ações, `perfil.js` cuida da conta, `ui.js` cuida do DOM, `theme.js` do tema e `main.js` orquestra.
-
-> Módulos ES exigem HTTP; `file://` não funciona.
-
-Versão publicada: https://moisesmayyer.github.io/GerenciadorDeTarefas/
-
-A API padrão é `https://gerenciadordetarefas-eesn.onrender.com`. Como o Render gratuito hiberna, a primeira requisição pode levar dezenas de segundos (cold start).
+> [!NOTE]
+> O frontend foi feito com ajuda de inteligência artificial. Como o foco do projeto é o backend, a interface serve apenas como demonstração.
 
 ## Decisões técnicas
 
-**pwdlib/Argon2 em vez de passlib.** O `passlib` depende do `crypt`, removido no Python 3.13; o `pwdlib` mantém o Argon2.
+**Argon2 via `pwdlib`.** O `passlib` depende do módulo `crypt`, que saiu do Python 3.13; o `pwdlib` mantém o Argon2 sem esse problema.
 
-**PyJWT, não o pacote `jwt`.** O pacote `jwt` do PyPI é outro projeto; use `PyJWT`, importado como `jwt`, e não instale os dois juntos.
+**PyJWT, não o pacote `jwt`.** O pacote `jwt` do PyPI é outro projeto. O correto aqui é o `PyJWT`, importado como `jwt`.
 
-**`response_model` nas rotas de usuários e tarefas.** Sem ele, o FastAPI serializa o objeto SQLAlchemy inteiro e pode vazar campos como o hash da senha.
+**`response_model` nas rotas.** Sem ele, o FastAPI serializa o objeto SQLAlchemy inteiro e pode vazar o hash da senha.
 
-**Isolamento por `usuario_id` na query, com `404`.** O filtro por dono fica na consulta; responder `404` em vez de `403` não confirma a existência de registros de outra conta.
+**Filtro por dono na query, com `404`.** O filtro fica na consulta. Responder `404` em vez de `403` não entrega se existe registro em outra conta.
 
-**`model_dump(exclude_unset=True, exclude_none=True)` no `PUT`.** A atualização aplica apenas campos presentes e não nulos, evitando sobrescrever dados com `null`.
+**Atualização parcial com `exclude_unset` e `exclude_none`.** A atualização aplica só os campos enviados e diferentes de `null`, sem sobrescrever dados.
 
-**Cascade no ORM e no banco.** O ORM remove as tarefas com `cascade="all, delete-orphan"`; a FK também usa `ON DELETE CASCADE` como defesa para exclusões que não passem pelo ORM.
+**Exclusão lógica de tarefas.** O `DELETE` só marca `deletado = true`. A linha continua no banco e some de todas as consultas.
 
-**Alembic para versionar o schema.** O schema não é mais criado com `create_all`; as migrations ficam em `alembic/versions/` e são aplicadas com `alembic upgrade head`, inclusive no start do deploy. Isso permite evoluir o banco de produção sem perder dados. Nos testes, o `conftest.py` ainda recria as tabelas diretamente para garantir isolamento.
+**Cascade no ORM e no banco.** O ORM apaga as tarefas junto com o usuário; a FK com `ON DELETE CASCADE` cobre exclusões feitas fora do ORM.
 
-**Busca local no frontend.** O backend não oferece busca ou paginação; a interface filtra em memória. Com volume maior, isso deve migrar para a API.
+**Alembic para versionar o schema.** O schema nasce das migrações e é atualizado com `alembic upgrade head`, inclusive no start do deploy. Nos testes, o `conftest.py` recria as tabelas a cada caso para manter o isolamento.
 
-**Mutações atualizam o estado local.** `POST`, `PUT` e `PATCH` devolvem a tarefa alterada e `DELETE` responde `204`; o frontend aplica a resposta na lista, sem refazer `GET /tarefas/`.
-
-**CORS restrito ao GitHub Pages.** `CORS_ORIGINS` é uma lista separada por vírgulas; como a autenticação usa Bearer token, `allow_credentials=False`.
+**CORS restrito e `allow_credentials=False`.** O login usa Bearer token, não cookie, por isso `allow_credentials=False`. Por padrão, só a origem publicada é aceita.
 
 ## Qualidade
 
-A suíte automatizada tem **57 testes passando** com `pytest` + `TestClient` sobre PostgreSQL:
-
-- autenticação: login válido, senha/e-mail inválidos, usuário inativo, refresh válido/rotacionado/inválido, logout revogando o refresh e todos os casos de `/auth/me` (token inválido, expirado, sem `sub`, `sub` não numérico e usuário inativo);
-- usuários: criação, validação, e-mail duplicado, e-mail em minúsculas, isolamento por dono, atualização parcial, troca de senha, cancelamento, exclusão e cascade das tarefas pelo ORM e pelo banco;
-- tarefas: criação com status padrão e validações, listagem e busca por id com isolamento por dono, atualização parcial (incluindo campos nulos), cancelamento, soft delete com preservação da linha e bloqueio de acesso após exclusão;
-- sistema: verificação da rota raiz.
-
-O banco de teste é isolado: o `conftest.py` deriva `test_gerenciador_tarefas`, exige o prefixo `test_` e recria as tabelas a cada teste.
-
-O frontend foi validado manualmente em navegador headless (20 cenários) e em layouts de 1440×900 a 360×1600. Verificação de sintaxe dos módulos:
+- **Backend:** `pytest` + `TestClient` em PostgreSQL real, cobrindo auth, usuários, tarefas, isolamento por dono, cascade, exclusão lógica e códigos de erro.
+- **CI:** o workflow roda a suíte em PostgreSQL 16 e Python 3.14 a cada push ou pull request na `main`.
+- **Frontend:** testado manualmente em navegador headless (20 cenários) e em telas de 1440×900 a 360×1600.
+- **Sintaxe dos módulos JS** (verificação local):
 
 ```bash
 node --experimental-default-type=module --check docs/js/*.js
@@ -495,4 +395,4 @@ Em ordem de prioridade:
 
 ## Status do projeto
 
-Em desenvolvimento, com deploy ativo: API no Render, frontend no GitHub Pages e CRUD com JWT sobre PostgreSQL. Auth, usuários e tarefas cobertos por 57 testes; o schema é versionado com Alembic, e as melhorias de produção (CI, rate limiting e revogação de token) são os próximos passos.
+O projeto está no ar: API no Render, frontend no GitHub Pages e CRUD com JWT sobre PostgreSQL. Auth, usuários e tarefas têm testes automatizados, o schema é versionado com Alembic e o CI está configurado. Por enquanto, não há novas mudanças planejadas.
