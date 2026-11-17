@@ -22,7 +22,7 @@ API REST **multi-usuário** para tarefas pessoais. Tem login com JWT, cada conta
 
 ## Sumário
 
-[Sobre](#sobre-o-projeto) · [Funcionalidades](#funcionalidades) · [Stack](#stack) · [Como rodar](#como-rodar) · [Deploy](#deploy) · [Como usar](#como-usar) · [Endpoints](#endpoints) · [Regras](#regras-de-negócio) · [Códigos](#códigos-de-status) · [Modelo de dados](#modelo-de-dados) · [Frontend](#frontend) · [Decisões](#decisões-técnicas) · [Qualidade](#qualidade) · [O que falta](#o-que-falta)
+[Sobre](#sobre-o-projeto) · [Funcionalidades](#funcionalidades) · [Como rodar](#como-rodar) · [Deploy](#deploy) · [Como usar](#como-usar) · [Endpoints](#endpoints) · [Regras](#regras-de-negócio) · [Modelo de dados](#modelo-de-dados) · [Frontend](#frontend) · [Decisões](#decisões-técnicas) · [Qualidade](#qualidade) · [O que falta](#o-que-falta)
 
 ## Sobre o projeto
 
@@ -49,19 +49,6 @@ flowchart LR
 - **Frontend:** login, sessão salva no navegador, renovação automática quando o token expira, tema claro/escuro, filtros, contadores e perfil em modal.
 - **Produção:** migrações com Alembic, CORS restrito, limite de requisições e CI no GitHub Actions.
 
-## Stack
-
-| Camada | Tecnologia |
-|---|---|
-| Linguagem | Python 3.11+ (CI em 3.14) |
-| Framework | FastAPI 0.143 + Uvicorn |
-| ORM / banco | SQLAlchemy 2.1 + PostgreSQL (psycopg 3) |
-| Validação | Pydantic 2.14 + pydantic-settings |
-| Migrações | Alembic 1.20 |
-| Autenticação | PyJWT (HS256), pwdlib (Argon2), slowapi |
-| Frontend | HTML5, CSS3 e JavaScript (módulos ES) |
-| Testes | pytest + TestClient sobre PostgreSQL real |
-| Deploy | Render (API) + GitHub Pages (frontend) |
 
 ## Como rodar
 
@@ -118,9 +105,6 @@ PYTHONPATH=backend alembic downgrade -1                              # desfaz a 
 Para zerar o banco local: `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` e rode `PYTHONPATH=backend alembic upgrade head` de novo.
 
 </details>
-
-> [!WARNING]
-> `backend/.env` contém segredos e é ignorado pelo Git. Nunca faça commit da `SECRET_KEY`, da senha do banco ou de um `.env` real.
 
 ### Testes
 
@@ -217,17 +201,12 @@ curl -i -X DELETE http://localhost:8000/tarefas/deletar_tarefa/1 \
 
 </details>
 
-Frontend local:
-
-```bash
-python -m http.server 5500 --directory docs
-```
-
-Abra **http://localhost:5500**. Módulos ES precisam de HTTP; abrir com `file://` não funciona.
-
 ## Endpoints
 
-As rotas protegidas pedem `Authorization: Bearer <token>`. "Dono" quer dizer que o registro pertence ao usuário logado; se não pertencer, a resposta é **404**.
+<details>
+<summary>Ver todos os endpoints da API</summary>
+
+As rotas protegidas pedem `Authorization: Bearer <token>`. "Dono" significa que o registro pertence ao usuário autenticado.
 
 | Grupo | Método | Rota | Acesso | Descrição |
 |---|---|---|---|---|
@@ -249,7 +228,9 @@ As rotas protegidas pedem `Authorization: Bearer <token>`. "Dono" quer dizer que
 | Tarefas | DELETE | `/tarefas/deletar_tarefa/{id}` | dono | Exclusão lógica (`204`) |
 | Sistema | GET | `/` | público | Verificação simples da API |
 
-`GET /tarefas/` aceita `skip` (padrão `0`), `limit` (padrão `10`, máximo `100`) e `busca` (trecho da descrição, sem diferenciar maiúsculas). A resposta é `{ "items": [...], "skip": 0, "limit": 10, "total": 1 }`.
+`GET /tarefas/` aceita `skip` (padrão `0`), `limit` (padrão `10`, máximo `100`) e `busca`.
+
+</details>
 
 ## Regras de negócio
 
@@ -268,20 +249,7 @@ As rotas protegidas pedem `Authorization: Bearer <token>`. "Dono" quer dizer que
 
 > [!CAUTION]
 > A exclusão da conta é definitiva e remove todas as tarefas e sessões. A API não oferece recuperação nem lixeira.
-
-## Códigos de status
-
-| Código | Quando acontece |
-|---|---|
-| `200` | Operações concluídas em usuários e tarefas |
-| `201` | Criação de usuário ou tarefa |
-| `204` | Exclusão ou logout, sem corpo |
-| `401` | Token ausente, inválido ou expirado; usuário inativo; credenciais incorretas |
-| `404` | Registro inexistente ou pertencente a outra conta |
-| `409` | E-mail já cadastrado |
-| `422` | Corpo inválido (validação do Pydantic) |
-| `429` | Rate limit excedido |
-
+|
 > [!WARNING]
 > O limite padrão do projeto é **5 requisições por minuto por IP**, configurado em `backend/app/limiter.py`.
 
